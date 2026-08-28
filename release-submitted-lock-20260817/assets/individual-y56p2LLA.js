@@ -1,1 +1,0 @@
-import{d as t,j as r,r as o,E as s,b as e}from"./ErrorBoundary-CLpbJWfJ.js";import{I as a}from"./IndividualApp-5oIdwpyn.js";import"./textarea-CwhxfrNq.js";import"./idCardValidator-Lb8g39lZ.js";t.createRoot(document.getElementById("root")).render(r.jsxs(o.StrictMode,{children:[r.jsx(s,{children:r.jsx(a,{})}),r.jsx(e,{})]}));

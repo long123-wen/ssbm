@@ -5,6 +5,7 @@ node_modules/
 dist/
 build/
 out/
+release-*/
 
 # Wrangler (Cloudflare) local state & cache
 .wrangler/
