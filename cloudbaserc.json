@@ -1,0 +1,17 @@
+{
+  "envId": "YOUR_ENV_ID",
+  "framework": {
+    "name": "跳绳赛事报名系统",
+    "plugins": {
+      "client": {
+        "use": "@cloudbase/framework-plugin-website",
+        "inputs": {
+          "buildCommand": "npm run build",
+          "outputPath": "dist",
+          "cloudPath": "/",
+          "ignore": [".env.local", ".env.*.local", "node_modules"]
+        }
+      }
+    }
+  }
+}

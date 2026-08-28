@@ -1,0 +1,1 @@
+import{d as t,j as r,r as o,E as s,b as e}from"./ErrorBoundary-XNVfm24v.js";import{A as a}from"./AdminApp-Dn9KrRZE.js";import"./xlsx-CP1XsbPL.js";import"./textarea-B7zcy6e9.js";t.createRoot(document.getElementById("root")).render(r.jsxs(o.StrictMode,{children:[r.jsx(s,{children:r.jsx(a,{})}),r.jsx(e,{})]}));

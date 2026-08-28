@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+out/
+
+# Wrangler (Cloudflare) local state & cache
+.wrangler/
+.dev.vars
+.wrangler-state/
+
+# D1 database dumps (contain session tokens — never commit)
+*.sql
+d1-backup-*.sql
+
+# One-off debug/ad-hoc scripts
+_check_*.py
+
+# Environment files (contains secrets)
+.env
+.env.local
+.env.*.local
+.env.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Supabase
+supabase/.temp/

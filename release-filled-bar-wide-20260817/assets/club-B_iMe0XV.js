@@ -1,0 +1,1 @@
+import{d as t,j as r,r as o,E as s,b as e}from"./ErrorBoundary-DLlWQ9-1.js";import{C as a}from"./ClubApp-C-TjIfjy.js";import"./xlsx-BM9vQwTR.js";import"./idCardValidator-BLxyy8K5.js";t.createRoot(document.getElementById("root")).render(r.jsxs(o.StrictMode,{children:[r.jsx(s,{children:r.jsx(a,{})}),r.jsx(e,{})]}));

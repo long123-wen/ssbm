@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>跳绳赛事报名系统 — 俱乐部端用户操作手册</title>
+<style>
+  @page { size: A4; margin: 0; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+    margin: 0; padding: 0;
+    color: #1e293b;
+    line-height: 1.7;
+    font-size: 13px;
+  }
+
+  /* ── Cover Page ── */
+  .cover {
+    width: 100%; height: 1122px;
+    background: linear-gradient(160deg, #1e3a5f 0%, #0f2744 40%, #1a56db 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute; top: -200px; right: -200px;
+    width: 700px; height: 700px;
+    background: radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .cover::after {
+    content: '';
+    position: absolute; bottom: -100px; left: -100px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .cover-content { position: relative; z-index: 2; text-align: center; }
+  .cover-icon {
+    width: 80px; height: 80px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 24px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 30px;
+    font-size: 40px;
+    border: 2px solid rgba(255,255,255,0.2);
+  }
+  .cover h1 { color: #fff; font-size: 36px; font-weight: 800; margin: 0 0 12px; letter-spacing: 2px; }
+  .cover .subtitle { color: rgba(255,255,255,0.7); font-size: 18px; margin: 0 0 40px; }
+  .cover .meta { display: flex; gap: 30px; justify-content: center; }
+  .cover .meta-item { text-align: center; }
+  .cover .meta-label { color: rgba(255,255,255,0.5); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  .cover .meta-value { color: rgba(255,255,255,0.85); font-size: 14px; margin-top: 4px; }
+  .cover .divider { width: 60px; height: 3px; background: linear-gradient(90deg, #3b82f6, #6366f1); border-radius: 2px; margin: 30px auto; }
+
+  /* ── Page ── */
+  .page {
+    width: 100%; min-height: 1122px;
+    padding: 60px 70px;
+    box-sizing: border-box;
+    page-break-after: always;
+    position: relative;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  /* ── Header ── */
+  .page-header {
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 16px;
+    margin-bottom: 30px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .page-header h2 { margin: 0; font-size: 22px; color: #1e3a5f; }
+  .page-header .chapter-num {
+    font-size: 12px; color: #64748b;
+    background: #f1f5f9; padding: 4px 12px; border-radius: 20px;
+  }
+
+  /* ── Section ── */
+  h3 { font-size: 17px; color: #1e40af; margin: 28px 0 12px; padding-left: 12px; border-left: 4px solid #3b82f6; }
+  h4 { font-size: 15px; color: #334155; margin: 20px 0 8px; }
+
+  /* ── UI Mockup ── */
+  .mockup {
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 16px 0;
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre;
+    color: #334155;
+    overflow-x: auto;
+    position: relative;
+  }
+  .mockup::before {
+    content: '📱 界面示意图';
+    position: absolute; top: -11px; left: 16px;
+    background: #f8fafc; padding: 0 8px;
+    font-size: 11px; color: #64748b;
+    font-family: "Microsoft YaHei", sans-serif;
+  }
+
+  /* ── Tables ── */
+  table {
+    width: 100%; border-collapse: collapse;
+    margin: 12px 0 20px;
+    font-size: 12px;
+  }
+  thead { background: #f1f5f9; }
+  th {
+    padding: 10px 12px; text-align: left;
+    font-weight: 600; color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    font-size: 12px;
+  }
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+  }
+  tr:nth-child(even) td { background: #fafbfc; }
+
+  /* ── Info Boxes ── */
+  .info-box {
+    border-radius: 8px; padding: 14px 18px;
+    margin: 14px 0;
+    font-size: 12px;
+  }
+  .info-box.tip { background: #eff6ff; border-left: 4px solid #3b82f6; color: #1e40af; }
+  .info-box.warn { background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e; }
+  .info-box.danger { background: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; }
+  .info-box.success { background: #f0fdf4; border-left: 4px solid #22c55e; color: #166534; }
+  .info-box strong { display: block; margin-bottom: 4px; }
+
+  /* ── Steps Flow ── */
+  .steps-flow {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; margin: 20px 0; flex-wrap: wrap;
+  }
+  .step-circle {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: #fff; font-weight: 700; font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+  }
+  .step-line {
+    width: 50px; height: 3px; background: #e2e8f0;
+    border-radius: 2px; margin: 0 4px;
+  }
+  .step-label {
+    text-align: center; font-size: 11px; color: #64748b; margin-top: 6px;
+  }
+
+  /* ── Status Badges ── */
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 12px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge.pending { background: #fef3c7; color: #92400e; }
+  .badge.confirmed { background: #dcfce7; color: #166534; }
+  .badge.rejected { background: #fee2e2; color: #991b1b; }
+
+  /* ── FAQ ── */
+  .faq-item { margin-bottom: 18px; }
+  .faq-q {
+    font-weight: 700; color: #1e3a5f; font-size: 14px;
+    padding: 10px 14px; background: #f8fafc;
+    border-radius: 8px 8px 0 0;
+    border: 1px solid #e2e8f0; border-bottom: none;
+  }
+  .faq-a {
+    padding: 12px 14px; color: #475569;
+    border: 1px solid #e2e8f0; border-top: none;
+    border-radius: 0 0 8px 8px;
+    font-size: 13px;
+  }
+
+  /* ── Footer ── */
+  .page-footer {
+    position: absolute; bottom: 30px; left: 70px; right: 70px;
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: #94a3b8;
+    border-top: 1px solid #e2e8f0; padding-top: 10px;
+  }
+
+  /* ── Flow Chart ── */
+  .flowchart {
+    background: #f8fafc; border: 1.5px solid #e2e8f0;
+    border-radius: 12px; padding: 24px;
+    margin: 16px 0;
+    text-align: center;
+  }
+  .flow-row { display: flex; align-items: center; justify-content: center; margin: 8px 0; gap: 8px; }
+  .flow-box {
+    padding: 10px 18px; border-radius: 10px;
+    font-size: 12px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .flow-box.primary { background: #dbeafe; color: #1e40af; border: 1.5px solid #93c5fd; }
+  .flow-box.secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #cbd5e1; }
+  .flow-box.accent { background: #ede9fe; color: #6d28d9; border: 1.5px solid #c4b5fd; }
+  .flow-arrow { color: #94a3b8; font-size: 16px; }
+
+  /* ── Utils ── */
+  .text-center { text-align: center; }
+  .text-sm { font-size: 11px; color: #64748b; }
+  .mt-4 { margin-top: 16px; }
+  .mb-4 { margin-bottom: 16px; }
+  ul, ol { padding-left: 20px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  code {
+    background: #f1f5f9; padding: 2px 6px; border-radius: 4px;
+    font-family: "Consolas", monospace; font-size: 12px;
+    color: #e11d48;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ COVER ═══════════════════ -->
+<div class="cover">
+  <div class="cover-content">
+    <div class="cover-icon">🏆</div>
+    <h1>跳绳赛事报名系统</h1>
+    <p class="subtitle">俱乐部端用户操作手册</p>
+    <div class="divider"></div>
+    <div class="meta">
+      <div class="meta-item">
+        <div class="meta-label">版本</div>
+        <div class="meta-value">v3.0</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">更新日期</div>
+        <div class="meta-value">2026年6月15日</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">适用对象</div>
+        <div class="meta-value">俱乐部领队/教练</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ CH1: 系统概述 ═══════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h2>1. 系统概述</h2>
+    <span class="chapter-num">第 1 章</span>
+  </div>
+
+  <p>俱乐部端（自助报名系统）是供参赛单位使用的在线报名平台。每个俱乐部账号可以：</p>
+
+  <div class="mockup">
+┌────────────────────────────────────────────┐
+│                俱乐部端功能总览              │
+├────────────────────────────────────────────┤
+│  👥 多队伍管理    — 一个俱乐部创建多支参赛队伍  │
+│  📋 人员录入      — 领队/教练/运动员信息管理    │
+│  🏃 在线报名      — 四步向导式选项目+选分组     │
+│  📥 报名追踪      — 查看审核状态/修改/撤销      │
+│  📊 导出清单      — Excel/PDF 格式导出报名数据  │
+└────────────────────────────────────────────┘
+  </div>
+
+  <div class="info-box tip">
+    <strong>💡 访问方式</strong>
+    从系统首页点击「俱乐部报名入口」→ 输入账号密码登录。首次使用需先注册，等待管理员审核通过。
+  </div>
+
+  <div class="page-footer">
+    <span>跳绳赛事报名系统 · 俱乐部端用户手册</span>
+    <span>第 2 页</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ CH2: 登录与注册 ═══════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h2>2. 登录与注册</h2>
+    <span class="chapter-num">第 2 章</span>
+  </div>
+
+  <h3>2.1 登录页面布局</h3>
+  <p>登录页面居中显示一张卡片，包含标题、登录/注册 Tab 切换、表单区域和底部提示。</p>
+
+  <div class="mockup">
+╔══════════════════════════════════╗
+║         🏆 俱乐部报名            ║
+║    ┌─────────┬─────────┐        ║
+║    │  🔑 登录 │ 📝 注册  │  ← Tab ║
+║    └─────────┴─────────┘        ║
+║                                 ║
+║   用户名：[_______________]     ║
+║   密  码：[_______________] 👁   ║
+║                                 ║
+║   [══════ 登 录 ══════]         ║
+║                                 ║
+║   ℹ️ 首次使用请先注册账号         ║
+╚══════════════════════════════════╝
+  </div>
+
+  <h3>2.2 登录字段</h3>
+  <table>
+    <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>用户名</td><td>文本输入</td><td>✅</td><td>注册时设定的用户名</td></tr>
+      <tr><td>密码</td><td>密码输入</td><td>✅</td><td>支持显示/隐藏切换（👁 图标）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.3 注册字段</h3>
+  <table>
+    <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>俱乐部名称</td><td>文本输入</td><td>✅</td><td>如「XX市第一中学」</td></tr>
+      <tr><td>用户名</td><td>文本输入</td><td>✅</td><td>登录用，建议英文或拼音</td></tr>
+      <tr><td>密码</td><td>密码输入</td><td>✅</td><td>至少 6 位</td></tr>
+      <tr><td>确认密码</td><td>密码输入</td><td>✅</td><td>需与密码一致</td></tr>
+      <tr><td>联系人姓名</td><td>文本输入</td><td>✅</td><td></td></tr>
+      <tr><td>手机号</td><td>文本输入</td><td>✅</td><td></td></tr>
+      <tr><td>邮箱</td><td>文本输入</td><td>选填</td><td></td></tr>
+      <tr><td>所在省份/城市</td><td>下拉选择</td><td>选填</td><td></td></tr>
+    </tbody>
+  </table>
+
+  <div class="info-box warn">
+    <strong>⚠️ 注册注意事项</strong>
+    用户名不能重复；两次密码必须一致；注册后需等待管理员审核通过才能登录。如提示「账号尚未通过审核，请联系管理员」，表示审核还在进行中。
+  </div>
+
+  <div class="page-footer">
+    <span>跳绳赛事报名系统 · 俱乐部端用户手册</span>
+    <span>第 3 页</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ CH3: 主面板导航 ═══════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h2>3. 主面板导航</h2>
+    <span class="chapter-num">第 3 章</span>
+  </div>
+
+  <p>登录成功后进入主面板。桌面端采用<strong>左侧边栏 + 右侧内容区</strong>的经典布局。</p>
+
+  <h3>3.1 桌面端侧边栏结构</h3>
+  <div class="mockup">
+┌──────────────────────────┐
+│  🏆 自助报名系统          │  ← Logo
+│  XX市第一中学             │  ← 俱乐部名称
+├──────────────────────────┤
+│  参赛队伍                 │
+│  ┌────────────────────┐  │
+│  │ ● 精英队 (当前) ✏️  │  │  ← 队伍卡片（可展开）
+│  │   👥 队员管理       │  │
+│  │   📋 报名          │  │
+│  └────────────────────┘  │
+│  ┌────────────────────┐  │
+│  │ ○ 预备队      ✏️    │  │  ← 另一支队伍
+│  └────────────────────┘  │
+│  [ ＋ 增加队伍 ]          │
+├──────────────────────────┤
+│  👥 团队管理              │  ← 导航 1
+│  📋 在线报名              │  ← 导航 2
+│  📥 我的报名              │  ← 导航 3
+├──────────────────────────┤
+│  🌙 暗色模式              │
+│  🚪 退出登录              │
+└──────────────────────────┘
+  </div>
+
+  <h3>3.2 移动端布局</h3>
+  <div class="info-box tip">
+    <strong>📱 小屏幕适配</strong>
+    顶部显示汉堡菜单按钮（☰），点击展开侧边栏覆盖层。底部固定导航条包含三个主功能入口：团队管理、在线报名、我的报名。
+  </div>
+
+  <h3>3.3 队伍卡片交互</h3>
+  <ul>
+    <li>点击队伍卡片 → 展开操作菜单：「队员管理」「报名」两个快捷入口</li>
+    <li>点击快捷入口 → 切换到该队伍并跳转到对应页面</li>
+    <li>卡片右侧 ✏️ 图标 → 编辑队伍信息（名称、口号、队徽、人数上限）</li>
+    <li>当前选中的队伍卡片显示 <strong>primary 色高亮边框</strong></li>
+  </ul>
+
+  <div class="page-footer">
+    <span>跳绳赛事报名系统 · 俱乐部端用户手册</span>
+    <span>第 4 页</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ CH4: 队伍管理 ═══════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h2>4. 队伍管理</h2>
+    <span class="chapter-num">第 4 章</span>
+  </div>
+
+  <div class="info-box tip">
+    <strong>💡 概念说明</strong>
+    一个俱乐部可以在同一赛事下创建多个参赛队伍。每个队伍<strong>独立管理</strong>自己的领队、教练、运动员和报名数据，互不影响。
+  </div>
+
+  <h3>4.1 创建新队伍</h3>
+  <p>点击侧边栏「＋ 增加队伍」按钮，弹出创建对话框：</p>
+
+  <div class="mockup">
+╔══════════════════════════════════╗
+║         创建新队伍                ║
+║──────────────────────────────────║
+║  队伍名称：[_______________]    ║
+║  队伍口号：[_______________]    ║
+║  队徽图片：[📷 点击上传]  JPG/PNG║
+║  最大运动员数：[___] 人         ║
+║──────────────────────────────────║
+║       [取消]    [创建队伍]       ║
+╚══════════════════════════════════╝
+  </div>
+
+  <table>
+    <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>队伍名称</td><td>文本输入</td><td>✅</td><td>如「一队」「精英队」</td></tr>
+      <tr><td>队伍口号</td><td>文本输入</td><td>选填</td><td>展示在队伍卡片上</td></tr>
+      <tr><td>队徽图片</td><td>图片上传</td><td>选填</td><td>JPG/PNG 格式</td></tr>
+      <tr><td>最大运动员数</td><td>数字输入</td><td>选填</td><td>限制该队伍运动员上限</td></tr>
+    </tbody>
+  </table>
+
+  <h3>4.2 编辑与切换</h3>
+  <ul>
+    <li><strong>编辑队伍</strong>：点击卡片右侧 ✏️ 图标 → 弹出编辑对话框 → 修改后保存</li>
+    <li><strong>切换队伍</strong>：直接点击目标队伍卡片即可切换。当前队伍高亮显示</li>
+  </ul>
+
+  <div class="page-footer">
+    <span>跳绳赛事报名系统 · 俱乐部端用户手册</span>
+    <span>第 5 页</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ CH5: 团队管理 ═══════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h2>5. 团队管理（领队/教练/运动员）</h2>
+    <span class="chapter-num">第 5 章</span>
+  </div>
+
+  <p>入口：侧边栏 → 「团队管理」。页面以三个 Tab 页签组织：</p>
+
+  <div class="mockup" style="text-align:center; white-space:normal;">
+    <span style="background:#dbeafe;color:#1e40af;padding:6px 16px;border-radius:6px 6px 0 0;font-weight:600;">👤 运动员</span>
+    <span style="background:#f1f5f9;color:#64748b;padding:6px 16px;border-radius:6px 6px 0 0;">🧑‍🏫 教练员</span>
+    <span style="background:#f1f5f9;color:#64748b;padding:6px 16px;border-radius:6px 6px 0 0;">👔 领队</span>
+  </div>
+
+  <h3>5.1 运动员管理</h3>
+
+  <h4>运动员列表</h4>
+  <table>
+    <thead><tr><th>头像</th><th>姓名</th><th>性别</th><th>出生日期</th><th>身份证号</th><th>操作</th></tr></thead>
+    <tbody>
+      <tr><td>🟡 张</td><td>张三</td><td>男</td><td>2008-03-15</td><td>3201****1234</td><td>✏️ 🗑️</td></tr>
+      <tr><td>🩷 李</td><td>李四</td><td>女</td><td>2009-07-22</td><td>3201****5678</td><td>✏️ 🗑️</td></tr>
+    </tbody>
+  </table>
+
+  <h4>添加运动员</h4>
+  <div class="mockup">
+╔══════════════════════════════════╗
+║         添加运动员                ║
+║──────────────────────────────────║
+║  姓  名：[_______________]      ║
+║  性  别：● 男  ○ 女             ║
+║  出生日期：[____年__月__日]      ║
+║  身份证号：[________________]   ║
+║          🔍 自动识别性别和出生日期║
+║  照  片：[📷 上传] JPG/PNG ≤2MB ║
+║──────────────────────────────────║
+║       [取消]    [保存]           ║
+╚══════════════════════════════════╝
+  </div>
+
+  <div class="info-box success">
+    <strong>🧠 身份证智能识别</strong>
+    输入 18 位身份证号后，系统自动校验格式合法性。校验通过后，自动从号码中提取出生日期和性别填入对应字段，无需手动输入。
+  </div>
+
+  <div class="page-footer">
+    <span>跳绳赛事报名系统 · 俱乐部端用户手册</span>
+    <span>第 6 页</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ CH5 continued ═══════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h2>5. 团队管理（续）</h2>
+    <span class="chapter-num">第 5 章</span>
+  </div>
+
+  <h4>批量导入运动员</h4>
+  <div class="steps-flow" style="font-size:12px; color:#475569; gap:12px;">
+    <span class="flow-box primary">① 选择 Excel 文件</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-box primary">② 预览数据</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-box primary">③ 确认导入</span>
+  </div>
+
+  <table>
+    <thead><tr><th>列名</th><th>必填</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>姓名</td><td>✅</td><td>运动员姓名</td></tr>
+      <tr><td>性别</td><td>选填</td><td>「男」或「女」，默认为男</td></tr>
+      <tr><td>出生日期</td><td>选填</td><td>日期格式 YYYY-MM-DD</td></tr>
+      <tr><td>身份证号</td><td>选填</td><td>18 位</td></tr>
+    </tbody>
+  </table>
+
+  <div class="info-box tip">
+    <strong>📊 导入结果</strong>
+    导入完成后显示成功条数和失败条数。失败记录会列出具体原因（缺少姓名、格式错误等）。
+  </div>
+
+  <h3>5.2 教练员管理</h3>
+  <table>
+    <thead><tr><th>姓名</th><th>手机号</th><th>操作</th></tr></thead>
+    <tbody>
+      <tr><td>王教练</td><td>138****5678</td><td>✏️ 🗑️</td></tr>
+    </tbody>
+  </table>
+  <p>添加/编辑字段：<strong>姓名</strong>（必填）、<strong>手机号</strong>（选填）。</p>
+
+  <h3>5.3 领队管理</h3>
+  <table>
+    <thead><tr><th>姓名</th><th>手机号</th><th>职位</th><th>操作</th></tr></thead>
+    <tbody>
+      <tr><td>赵领队</td><td>139****9012</td><td>总领队</td><td>✏️ 🗑️</td></tr>
+    </tbody>
+  </table>
+  <p>添加/编辑字段：<strong>姓名</strong>（必填）、<strong>手机号</strong>（选填）、<strong>职位</strong>（选填，如「总领队」「副领队」）。</p>
+
+  <div class="info-box warn">
+    <strong>⚠️ 删除操作</strong>
+    删除任何人员前系统会弹出二次确认对话框。确认后数据不可恢复。
+  </div>
+
+  <div class="page-footer">
+    <span>跳绳赛事报名系统 · 俱乐部端用户手册</span>
+    <span>第 7 页</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ CH6: 在线报名 ═══════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h2>6. 在线报名 — 报名流程总览</h2>
+    <span class="chapter-num">第 6 章</span>
+  </div>
+
+  <p>这是俱乐部端的<strong>核心功能</strong>。报名流程为四步骤向导：</p>
+
+  <div class="steps-flow">
+    <div style="text-align:center">
+      <div class="step-circle">1</div>
+      <div class="step-label">选运动员</div>
+    </div>
+    <div class="step-line"></div>
+    <div style="text-align:center">
+      <div class="step-circle">2</div>
+      <div class="step-label">选类别</div>
+    </div>
+    <div class="step-line"></div>
+    <div style="text-align:center">
+      <div class="step-circle">3</div>
+      <div class="step-label">选项目</div>
+    </div>
+    <div class="step-line"></div>
+    <div style="text-align:center">
+      <div class="step-circle">4</div>
+      <div class="step-label">提交清单</div>
+    </div>
+  </div>
+
+  <div class="info-box tip">
+    <strong>📝 注意</strong>如果赛事只有一个项目类别，第二步「选类别」会自动跳过，直接进入项目选择。
+  </div>
+
+  <h3>6.1 页面顶部信息</h3>
+  <div class="mockup">
+┌──────────────────────────────────────────────┐
+│  赛事：[2026年跳绳锦标赛 ▼]     ⏰ 距截止 15 天  │
+│                                              │
+│  ① 选运动员 ── ② 选类别 ── ③ 选项目 ── ④ 提交 │
+└──────────────────────────────────────────────┘
+  </div>
+
+  <table>
+    <thead><tr><th>元素</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>赛事选择器</td><td>下拉选择赛事（仅显示开放状态的赛事）</td></tr>
+      <tr><td>倒计时 - 安全</td><td>🟦 蓝色图标 +「距截止还剩 X 天」（>3天）</td></tr>
+      <tr><td>倒计时 - 警告</td><td>🟨 黄色图标 +「距截止还剩 X 天 Y 小时」（1-3天）</td></tr>
+      <tr><td>倒计时 - 紧急</td><td>🟥 红色图标 +「距截止还剩 Y 小时」（<1天）</td></tr>
+      <tr><td>已截止</td><td>🔴 红色图标 +「报名已截止」</td></tr>
+    </tbody>
+  </table>
+
+  <h3>6.2 ⚠️ 赛事锁定机制</h3>
+  <div class="info-box danger">
+    <strong>🔒 重要规则</strong>
+    一旦某个赛事下有报名提交（状态为「审核中」或「已确认」），该赛事将被锁定，<strong>无法再新增报名</strong>。锁定时页面显示阻断面板，提示前往「我的报名」修改被拒绝的项目。
+  </div>
+
+  <div class="page-footer">
+    <span>跳绳赛事报名系统 · 俱乐部端用户手册</span>
+    <span>第 8 页</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ CH6: Step 1 ═══════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h2>6.3 步骤 1 — 选择参赛运动员</h2>
+    <span class="chapter-num">第 6 章</span>
+  </div>
+
+  <div class="mockup">
+┌──────────────────────────────────────────────┐
+│  ① 选择参赛运动员                             │
+│  每次选择一名运动员，进入下一步后选择报名项目。  │
+│                                              │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐      │
+│  │ 🟡 张三  │ │ 🩷 李四  │ │ 🟡 王五  │      │
+│  │  ✓已添加  │ │          │ │          │      │
+│  └──────────┘ └──────────┘ └──────────┘      │
+│    绿色=已添加    灰色=未选     蓝色=当前选中   │
+│                                              │
+│  [+ 快速新建运动员]              [下一步 →]    │
+└──────────────────────────────────────────────┘
+  </div>
+
+  <p>运动员以<strong>胶囊按钮</strong>形式展示，点击即可选中/取消：</p>
+  <table>
+    <thead><tr><th>状态</th><th>视觉样式</th></tr></thead>
+    <tbody>
+      <tr><td>未选中</td><td>白色背景 + 灰色边框</td></tr>
+      <tr><td>已选中</td><td><span style="color:#2563eb;font-weight:600;">蓝色背景</span> + 白色文字 + ✓ 图标</td></tr>
+      <tr><td>已添加过报名</td><td><span style="color:#16a34a;font-weight:600;">绿色背景</span> +「✓已添加」标签</td></tr>
+    </tbody>
+  </table>
+
+  <p>运动员头像：有照片显示照片缩略图，无照片显示姓名首字（<span style="color:#2563eb;">蓝色=男</span>、<span style="color:#ec4899;">粉色=女</span>）。</p>
+
+  <div class="info-box warn">
+    <strong>⚠️ 运动员列表为空</strong>
+    如果显示「请先添加运动员」，需要先去「团队管理」页面添加运动员，或使用下方「快速新建运动员」功能。
+  </div>
+
+  <h4>快速新建运动员</h4>
+  <table>
+    <thead><tr><th>字段</th><th>必填</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>姓名</td><td>✅</td><td></td></tr>
+      <tr><td>性别</td><td>✅</td><td>男/女，默认男</td></tr>
+      <tr><td>出生日期</td><td>✅</td><td></td></tr>
+      <tr><td>身份证号</td><td>✅</td><td>支持智能识别性别和出生日期</td></tr>
+      <tr><td>照片</td><td>选填</td><td>JPG/PNG ≤ 2MB</td></tr>
+    </tbody>
+  </table>
+
+  <div class="page-footer">
+    <span>跳绳赛事报名系统 · 俱乐部端用户手册</span>
+    <span>第 9 页</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ CH6: Step 2-3 ═══════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h2>6.4 步骤 2 & 3 — 选类别 + 选项目</h2>
+    <span class="chapter-num">第 6 章</span>
+  </div>
+
+  <h3>步骤 2：选择项目类别</h3>
+  <div class="mockup">
+┌──────────────────────────────────────────────┐
+│  ② 选择项目类别                               │
+│                                              │
+│  ┌────────────────┐ ┌────────────────┐       │
+│  │    🏃 单绳      │ │   🤝 交互绳    │       │
+│  │   8 个项目      │ │   5 个项目     │       │
+│  └────────────────┘ └────────────────┘       │
+│        蓝色高亮=已选中                           │
+│                                              │
+│  [← 上一步]                    [下一步 →]     │
+└──────────────────────────────────────────────┘
+  </div>
+
+  <div class="info-box tip"><strong>自动跳过</strong>如果赛事只有一个项目类别，此步骤自动跳过。</div>
+
+  <h3>步骤 3：为运动员选择项目（核心步骤）</h3>
+  <p>包含项目勾选、分组选择、组队报名三项操作。</p>
+
+  <div class="mockup">
+┌──────────────────────────────────────────────┐
+│  ② 为「张三」选择项目（单绳）                   │
+│                                              │
+│  ┌──────────────────────────────────────┐    │
+│  │ 👥 组队报名  已选 2/4 人  还需选择 2 人  │    │  ← 仅多人项目时显示
+│  │ [张三] [李四] [王五] [赵六]              │    │
+│  └──────────────────────────────────────┘    │
+│                                              │
+│  ☑ 30秒单摇跳  每队最多 1 名  已选：男子组 [▼] │
+│  ┌──────────────────────────────────────┐    │
+│  │ 🟢 根据运动员智能筛选分组               │    │
+│  │ ┌──────────┐ ┌──────────┐            │    │
+│  │ │ 男子组 🔹建议│ │ 女子组     │            │    │
+│  │ │  5/20     │ │  3/20     │            │    │
+│  │ └──────────┘ └──────────┘            │    │
+│  └──────────────────────────────────────┘    │
+│                                              │
+│  [← 上一步]        [保存并添加下一个 →]       │
+└──────────────────────────────────────────────┘
+  </div>
+
+  <div class="page-footer">
+    <span>跳绳赛事报名系统 · 俱乐部端用户手册</span>
+    <span>第 10 页</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ CH6: Step 3 continued ═══════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h2>6.5 智能分组推荐与校验规则</h2>
+    <span class="chapter-num">第 6 章</span>
+  </div>
+
+  <h3>分组标识说明</h3>
+  <table>
+    <thead><tr><th>标识</th><th>含义</th></tr></thead>
+    <tbody>
+      <tr><td>🟢 绿色边框 +「建议」标签</td><td>系统推荐的分组（最匹配运动员年龄和性别）</td></tr>
+      <tr><td>🔵 蓝色边框</td><td>当前选中的分组</td></tr>
+      <tr><td>⚪ 灰色边框</td><td>可选但非推荐分组</td></tr>
+      <tr><td>半透明</td><td>该分组已满，不可选择</td></tr>
+    </tbody>
+  </table>
+
+  <h3>保存时的校验规则（共 9 条）</h3>
+  <table>
+    <thead><tr><th>#</th><th>校验项</th><th>错误提示</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>必须选择运动员</td><td>「请先选择运动员」</td></tr>
+      <tr><td>2</td><td>至少选一个项目</td><td>「请至少选择一个项目」</td></tr>
+      <tr><td>3</td><td>每个项目必须选分组</td><td>「请为每个所选项目选择分组」</td></tr>
+      <tr><td>4</td><td>多人项目至少 2 人</td><td>「多人项目请先选择至少 2 名队员」</td></tr>
+      <tr><td>5</td><td>不超过项目人数上限</td><td>「XX 每队最多 N 人」</td></tr>
+      <tr><td>6</td><td>个人/集体项目超项</td><td>「XXX 个人项目 N 项（限报 M 项）」</td></tr>
+      <tr><td>7</td><td>重复报名检查</td><td>「XX-YY 已有队员在清单中」</td></tr>
+      <tr><td>8</td><td>分组已满</td><td>「XX-YY 分组已满」</td></tr>
+      <tr><td>9</td><td>三维度限报</td><td>管理员设置的队伍/项目/分组级别限制</td></tr>
+    </tbody>
+  </table>
+
+  <div class="info-box success">
+    <strong>✅ 保存成功</strong>
+    点击「保存并添加下一个」后，当前运动员的报名项目添加到临时清单，自动返回步骤 1，可继续为下一个运动员报名。顶部显示绿色提示：「已保存 XXX 的 N 个报名项目」。
+  </div>
+
+  <div class="page-footer">
+    <span>跳绳赛事报名系统 · 俱乐部端用户手册</span>
+    <span>第 11 页</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ CH6: Step 4 ═══════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h2>6.6 步骤 4 — 查看并提交报名清单</h2>
+    <span class="chapter-num">第 6 章</span>
+  </div>
+
+  <p>所有临时保存的报名项目在此汇总，支持<strong>表格视图</strong>和<strong>卡片视图</strong>两种展示方式。</p>
+
+  <h3>表格视图（默认）</h3>
+  <div class="mockup">
+┌──────────────────────────────────────────────────┐
+│  报名清单（共 5 项）   [表格|卡片]  [Excel] [PDF]  │
+│                                                  │
+│  ☑ │序号│队员        │项目名称      │分组  │操作  │
+│ ───┼───┼───────────┼─────────────┼─────┼─────│
+│  ☑ │ 1  │张三        │30秒单摇跳    │男子组│ 🗑️  │
+│  ☐ │ 2  │👥 张三、李四│4×30秒接力   │混合组│ 🗑️  │  ← 多人项目
+│  ☐ │ 3  │李四        │3分钟单摇跳   │女子组│ 🗑️  │
+│                                                  │
+│  [删除选中(1)]                      [提交全部报名] │
+└──────────────────────────────────────────────────┘
+  </div>
+
+  <h3>卡片视图</h3>
+  <div class="mockup">
+┌──────────────────────────────────┐
+│ 👤 张三  男 · 2008-03-15         │
+│ （3 个项目）                     │
+│  ┌────────────────────────┐     │
+│  │ 30秒单摇跳 · 男子组  [🗑️]│     │
+│  ├────────────────────────┤     │
+│  │ 3分钟单摇跳 · 男子组  [🗑️]│     │
+│  └────────────────────────┘     │
+└──────────────────────────────────┘
+  </div>
+
+  <h3>提交前最终校验</h3>
+  <ul>
+    <li>检查所有运动员的个人/集体项目数是否超过限报</li>
+    <li>检查每个报名项目的分组是否已满</li>
+    <li>检查三维度限报规则（队伍/项目/分组级别）</li>
+  </ul>
+
+  <div class="info-box success">
+    <strong>📤 提交结果</strong>
+    成功：「成功提交 N 个报名」；部分失败：「成功提交 N 个报名，M 项失败」。失败原因包括分组已满、限报违规、重复报名、提交异常。提交后清单自动清空，返回步骤 1。
+  </div>
+
+  <div class="page-footer">
+    <span>跳绳赛事报名系统 · 俱乐部端用户手册</span>
+    <span>第 12 页</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ CH7: 我的报名 ═══════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h2>7. 我的报名</h2>
+    <span class="chapter-num">第 7 章</span>
+  </div>
+
+  <p>入口：侧边栏 → 「我的报名」。查看和管理已提交的报名记录。</p>
+
+  <h3>7.1 页面布局</h3>
+  <div class="mockup">
+┌──────────────────────────────────────────────┐
+│  我的报名   赛事筛选：[全部赛事 ▼]    [导出]    │
+│                                              │
+│  ┌──────────────────────────────────────┐    │
+│  │ 🏷️ 30秒单摇跳                         │    │
+│  │ 分组：男子组                          │    │
+│  │ 👤 张三                               │    │
+│  │ 状态：[审核中] 🔶                      │    │
+│  │ 报名时间：2026-06-15 14:30            │    │
+│  │                        [撤销]         │    │
+│  └──────────────────────────────────────┘    │
+│                                              │
+│  ┌──────────────────────────────────────┐    │
+│  │ 🏷️ 3分钟单摇跳                        │    │
+│  │ 分组：女子组                          │    │
+│  │ 👤 李四                               │    │
+│  │ 状态：[已拒绝] ❌  原因：年龄不符       │    │
+│  │ 报名时间：2026-06-14 10:00            │    │
+│  │                        [修改]         │    │
+│  └──────────────────────────────────────┘    │
+└──────────────────────────────────────────────┘
+  </div>
+
+  <h3>7.2 报名状态说明</h3>
+  <table>
+    <thead><tr><th>状态</th><th>图标</th><th>颜色</th><th>说明</th><th>可操作</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge pending">审核中</span></td><td>🕐</td><td>琥珀色</td><td>等待管理员审核</td><td>撤销</td></tr>
+      <tr><td><span class="badge confirmed">已确认</span></td><td>✅</td><td>绿色</td><td>审核通过</td><td>—</td></tr>
+      <tr><td><span class="badge rejected">已拒绝</span></td><td>❌</td><td>红色</td><td>被管理员拒绝（含原因）</td><td>修改重提交</td></tr>
+    </tbody>
+  </table>
+
+  <h3>7.3 修改被拒绝的报名</h3>
+  <p>点击「修改」按钮 → 弹出编辑对话框 → 可修改<strong>分组、运动员、教练</strong> → 提交后状态自动变为「审核中」，拒绝原因被清除。</p>
+
+  <h3>7.4 撤销报名</h3>
+  <p>仅限「审核中」状态。点击「撤销」→ 二次确认 → 报名记录删除，分组计数自动减少。</p>
+
+  <div class="page-footer">
+    <span>跳绳赛事报名系统 · 俱乐部端用户手册</span>
+    <span>第 13 页</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ CH8: FAQ ═══════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h2>8. 常见问题 FAQ</h2>
+    <span class="chapter-num">第 8 章</span>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q1: 为什么赛事选择器中看不到某个赛事？</div>
+    <div class="faq-a">
+      可能原因：① 该赛事状态不是「开放」（可能是草稿、已关闭或已完成）；② 该赛事已有提交的报名，已被锁定；③ 该赛事未配置任何项目。
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q2: 为什么提示「该赛事已有报名提交」无法新增报名？</div>
+    <div class="faq-a">
+      一旦您在某个赛事下提交了报名（状态为审核中或已确认），该赛事即被锁定，无法新增报名。如需修改被拒绝的项目，请前往「我的报名」页面操作。
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q3: 为什么运动员选不了某个分组？</div>
+    <div class="faq-a">
+      ① 年龄不匹配：出生日期不在分组年龄范围内；② 性别不匹配：与分组要求不符；③ 分组已满：报名数已达上限；④ 智能筛选：系统自动过滤不匹配的分组。
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q4: 什么是「每人限报项数」？</div>
+    <div class="faq-a">
+      管理员在赛事设置中限制每名运动员最多报名多少个个人项目和集体项目。超出限制时，系统会在保存和提交时阻止超项报名。
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q5: 多人项目如何报名？</div>
+    <div class="faq-a">
+      ① 勾选多人项目后，顶部出现紫色「组队报名」区域；② 选择 2 名或更多队员；③ 系统根据所有队员的年龄和性别智能推荐分组；④ 队员人数不能超过项目上限。
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q6: 如何修改已提交的报名？</div>
+    <div class="faq-a">
+      审核中 → 只能撤销后重新报名；已拒绝 → 点击「修改」可改分组/运动员/教练后重提交；已确认 → 无法自行修改，需联系管理员。
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q7: 报名截止后还能操作吗？</div>
+    <div class="faq-a">无法新增或修改报名，但仍然可以查看「我的报名」页面中的历史记录。</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Q8: 为什么要输入身份证号？</div>
+    <div class="faq-a">
+      用于校验运动员身份唯一性、自动识别出生日期和性别、赛事管理方进行身份核实。系统会进行合法性校验（格式、地区码、出生日期、校验码）。
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>跳绳赛事报名系统 · 俱乐部端用户手册</span>
+    <span>第 14 页</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ APPENDIX: Flowchart ═══════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h2>附录：完整报名流程图</h2>
+    <span class="chapter-num">附录</span>
+  </div>
+
+  <div class="flowchart">
+    <div class="flow-row">
+      <span class="flow-box secondary">🏠 登录系统</span>
+    </div>
+    <div class="flow-row"><span class="flow-arrow">▼</span></div>
+    <div class="flow-row">
+      <span class="flow-box secondary">📋 创建队伍</span>
+      <span class="text-sm">（如已有可跳过）</span>
+    </div>
+    <div class="flow-row"><span class="flow-arrow">▼</span></div>
+    <div class="flow-row">
+      <span class="flow-box secondary">👥 添加运动员</span>
+      <span class="flow-box secondary">🧑‍🏫 添加教练员</span>
+      <span class="flow-box secondary">👔 添加领队</span>
+    </div>
+    <div class="flow-row"><span class="flow-arrow">▼</span></div>
+    <div class="flow-row">
+      <span class="flow-box primary" style="font-size:14px;padding:14px 24px;">📋 在线报名</span>
+    </div>
+    <div class="flow-row"><span class="flow-arrow">▼</span></div>
+    <div class="flow-row">
+      <span class="flow-box primary">① 选择运动员</span>
+    </div>
+    <div class="flow-row"><span class="flow-arrow">▼</span></div>
+    <div class="flow-row">
+      <span class="flow-box primary">② 选择项目类别</span>
+      <span class="text-sm">（多类别时）</span>
+    </div>
+    <div class="flow-row"><span class="flow-arrow">▼</span></div>
+    <div class="flow-row">
+      <span class="flow-box primary">③ 勾选项目 → 选分组 → 组队</span>
+    </div>
+    <div class="flow-row"><span class="flow-arrow">▼</span></div>
+    <div class="flow-row">
+      <span class="flow-box primary">保存到清单</span>
+      <span class="flow-arrow">↩️</span>
+      <span class="text-sm">继续添加下一个运动员</span>
+    </div>
+    <div class="flow-row"><span class="flow-arrow">▼</span></div>
+    <div class="flow-row">
+      <span class="flow-box primary">④ 查看清单 → 提交全部报名</span>
+    </div>
+    <div class="flow-row"><span class="flow-arrow">▼</span></div>
+    <div class="flow-row">
+      <span class="flow-box accent" style="font-size:14px;padding:14px 24px;">📥 我的报名</span>
+    </div>
+    <div class="flow-row"><span class="flow-arrow">▼</span></div>
+    <div class="flow-row" style="gap:20px;">
+      <span class="flow-box secondary">🕐 审核中 → 等待/撤销</span>
+      <span class="flow-box secondary">✅ 已确认 → 完成</span>
+      <span class="flow-box secondary">❌ 已拒绝 → 修改重提交 ↩️</span>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:40px;padding:30px;background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border-radius:16px;">
+    <p style="font-size:20px;font-weight:700;color:#1e3a5f;margin:0 0 8px;">🏆 跳绳赛事报名系统</p>
+    <p style="font-size:13px;color:#64748b;margin:0;">俱乐部端用户操作手册 v3.0 · 2026年6月</p>
+    <p style="font-size:11px;color:#94a3b8;margin:4px 0 0;">如有疑问请联系赛事管理员</p>
+  </div>
+
+  <div class="page-footer">
+    <span>跳绳赛事报名系统 · 俱乐部端用户手册</span>
+    <span>第 15 页</span>
+  </div>
+</div>
+
+</body>
+</html>
