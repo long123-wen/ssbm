@@ -6,6 +6,12 @@ dist/
 build/
 out/
 release-*/
+dist-validation-*/
+dist.zip
+
+# Generated / temp artifacts
+generated-avatars/
+load-test-*.json
 
 # Wrangler (Cloudflare) local state & cache
 .wrangler/
