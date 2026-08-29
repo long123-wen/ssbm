@@ -1,49 +1,51 @@
 @echo off
-REM Push to GitHub with auto-retry (network is intermittent)
-REM Usage: double-click this file, or run it from PowerShell/cmd
-REM It will keep retrying every 10s until the push succeeds (max 40 tries).
-REM First run may pop up a GitHub login window (Git Credential Manager) - log in once.
+REM Push to GitHub via PortableGit's bash.exe.
+REM This .bat exists so double-clicking still works from a plain cmd window.
+REM The real logic lives in push-to-github.sh (runs in Git Bash, where 'git' is on PATH).
+
+setlocal
+
+set BASH_EXE=C:\Users\Administrator\.workbuddy\binaries\PortableGit\versions\1.2.0\bin\bash.exe
+
+if not exist "%BASH_EXE%" (
+  echo ERROR: bash.exe not found at:
+  echo   %BASH_EXE%
+  echo.
+  echo Falling back: trying to find git on PATH...
+  where git >nul 2>nul
+  if errorlevel 1 (
+    echo git is also not on PATH. Please install Git for Windows or use Git Bash directly.
+    pause
+    exit /b 1
+  )
+  echo Found git. Running push directly with cmd's PATH...
+  cd /d "%~dp0"
+  git push -f origin main
+  exit /b %ERRORLEVEL%
+)
 
 cd /d "%~dp0"
 
-echo.
-echo === Push rope-jump-registration to GitHub ===
-echo Repo:   https://github.com/long123-wen/ssbm.git
-echo Branch: main
-echo.
-echo Auto-retrying every 10s until success (max 40 tries).
-echo If a GitHub login window appears, please log in - it is a one-time step.
+echo ============================================================
+echo  Launching Git Bash to push rope-jump-registration
+echo  bash: %BASH_EXE%
+echo  script: %~dp0push-to-github.sh
+echo ============================================================
 echo.
 
-set RETRY=0
+"%BASH_EXE%" "%~dp0push-to-github.sh"
+set RC=%ERRORLEVEL%
 
-:LOOP
-git push -f origin main
-if %ERRORLEVEL% EQU 0 goto SUCCESS
-
-set /a RETRY+=1
 echo.
-echo [Attempt %RETRY%] Failed. Retrying in 10s... (network hiccup, will keep trying)
-echo.
-timeout /t 10 /nobreak >nul
-
-if %RETRY% GEQ 40 goto FAILED
-goto LOOP
-
-:SUCCESS
-echo.
-echo ==========================================
-echo   PUSH SUCCESSFUL
-echo   https://github.com/long123-wen/ssbm
-echo ==========================================
+echo ============================================================
+if %RC% EQU 0 (
+  echo   PUSH SUCCESSFUL
+  echo   https://github.com/long123-wen/ssbm
+) else (
+  echo   push-to-github.sh exited with code %RC%
+  echo   See the output above for the failure reason.
+)
+echo ============================================================
 echo.
 pause
-exit /b 0
-
-:FAILED
-echo.
-echo Gave up after 40 attempts.
-echo Please check your network (or try a VPN / phone hotspot), then run this file again.
-echo.
-pause
-exit /b 1
+endlocal
