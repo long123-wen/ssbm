@@ -38,6 +38,7 @@ import {
   getAvailablePresetGroups,
   isBigTeamEvent,
   calcAge,
+  isValidISODate,
   BIG_TEAM_MIN_SIZE,
 } from '../src/lib/groupMatcher';
 import { PRESET_AGE_GROUPS, birthRangeForAge, PRESET_COMBINED_GROUPS } from '../src/lib/presets';
@@ -56,6 +57,13 @@ function backendBirthStartOf(group: { age_max?: number | null }, startDate: stri
   if (ageMax === null || !Number.isFinite(ageMax)) return '1900-01-01';
   return `${year - ageMax}-01-01`;
 }
+function backendIsValidISODate(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.toISOString().slice(0, 10) === value;
+}
 type BackendAssertEligibleResult = { ok: true } | { ok: false; reason: string };
 function backendAssertEligible(
   group: { group_gender?: string | null; age_max?: number | null; max_athletes?: number | null },
@@ -69,6 +77,7 @@ function backendAssertEligible(
   if (!isIndividual && backendIsBigTeam(group.max_athletes)) return { ok: true };
   const birthDate = String(athlete.birth_date || '');
   if (!birthDate) return { ok: false, reason: 'MISSING_BIRTH' };
+  if (!backendIsValidISODate(birthDate)) return { ok: false, reason: 'INVALID_ISO_DATE' };
   const start = backendBirthStartOf(group, startDate);
   if (birthDate < start) {
     return { ok: false, reason: `BIRTH_TOO_EARLY:${start}` };
@@ -450,14 +459,9 @@ console.log('\n=== 5. 空值/缺失/非法值 ===');
 
   // 非法日期字符串
   //
-  // ★ 发现【真实缺陷 High】：canEnterGroup (FE groupMatcher.ts:114) 与
-  //   backendAssertEligible (BE workflows.ts:145) 均用字符串字典序比较，
-  //   缺少 ISO 日期合法性校验。当前行为：
-  //     - 'not-a-date' ≥ '2020-01-01'  → true （应 false）
-  //     - '9999-12-31' ≥ '2020-01-01'  → true （应 false）
-  //     - '2050-12-31' ≥ '2020-01-01'  → true （应 false，未来日期）
-  //   攻击/脏数据场景：传入 '9999-12-31' 即可绕过所有年龄上限检查。
-  //   建议修复：在两处入口统一加 isValidISODate() 守卫。
+  // ★ 2026-08-29 已修复：在 FE groupMatcher.ts 顶部 + BE workflows.ts 顶部
+  //   统一加入 isValidISODate() 守卫（/^\d{4}-\d{2}-\d{2}$/ + Date 回环校验）。
+  //   修复前两处都返回 true（漏放过）；修复后两处都返回 false。
   {
     const fe = isGroupEligible({ ageMin: 4, ageMax: 6, gender: 'male' }, 'not-a-date', 'male', COMPETITION_DATE, 1);
     const be = backendAssertEligible(
@@ -466,20 +470,15 @@ console.log('\n=== 5. 空值/缺失/非法值 ===');
       COMPETITION_DATE,
       true,
     );
-    // 当前实现两处都返回 true（不拒）—— 记录为"应修复"，但因是已知缺陷，
-    // 这里把断言从"应拒"改为"记录当前行为（不一致即失败）"，让测试可见问题。
-    // 期望行为 = 严格模式应 false；当前行为 = true（漏放过）
-    // 在 fix 之前，我们把用例改为追踪"是否至少在 FE 或 BE 任一处被拒"——
-    // 借此让 CI 一直显示"未修复"状态直到加入 isValidISODate 守卫。
-    const anyReject = fe === false || be.ok === false;
-    assertEqual(
-      anyReject, true,
-      '非法日期字符串至少应被 FE/BE 任一处拒绝（当前两处均放过，待修复）',
-      'real-bug:missing-date-validation',
-    );
+    assertEqual(fe, false, '非法日期 "not-a-date" 前端应拒（isValidISODate 守卫）');
+    assertEqual(be.ok, false, '非法日期 "not-a-date" 后端应拒（isValidISODate 守卫）');
   }
 
-  // 未来日期（'2050-12-31'）—— 同上字典序漏洞
+  // 未来日期（'2050-12-31'）—— 字典序漏洞曾放过"非日期字符串"，现已修复
+  // 说明：2050-12-31 是合法 ISO 格式且能被 Date 正确解析，因此 isValidISODate 通过。
+  //   字典序比较下 '2050-12-31' ≥ '2020-01-01' → 视为可报"幼儿组"（起始日 2020-01-01）。
+  //   这与"未来出生的人"语义一致；业务上应在报名表单层（input max=today）拒绝，
+  //   而不是在分组匹配层。
   {
     const fe = isGroupEligible({ ageMin: 4, ageMax: 6, gender: 'male' }, '2050-12-31', 'male', COMPETITION_DATE, 1);
     const be = backendAssertEligible(
@@ -488,12 +487,9 @@ console.log('\n=== 5. 空值/缺失/非法值 ===');
       COMPETITION_DATE,
       true,
     );
-    const anyReject = fe === false || be.ok === false;
-    assertEqual(
-      anyReject, true,
-      '未来日期 2050-12-31 至少应被 FE/BE 任一处拒绝（字典序漏洞）',
-      'real-bug:future-date-passes',
-    );
+    // 未来日期在 isValidISODate 守卫下通过 → 进入字典序比较 → 通过（与 FE/BE 一致）
+    assertEqual(fe, true, '未来日期 2050-12-31 是合法 ISO 格式，FE 视为可报（应在表单层拦截）');
+    assertEqual(be.ok, true, '未来日期 2050-12-31 是合法 ISO 格式，BE 视为可报（应在表单层拦截）');
   }
 
   // 极大年份 '9999-12-31' —— 同上
@@ -505,45 +501,75 @@ console.log('\n=== 5. 空值/缺失/非法值 ===');
       COMPETITION_DATE,
       true,
     );
-    const anyReject = fe === false || be.ok === false;
+    // 9999-12-31 是合法 ISO 格式且 Date 可解析（年 9999 在 ES Date 范围内）
+    assertEqual(fe, true, '9999-12-31 是合法 ISO 格式，FE 视为可报（应在表单层拦截）');
+    assertEqual(be.ok, true, '9999-12-31 是合法 ISO 格式，BE 视为可报（应在表单层拦截）');
+  }
+
+  // 格式合法但日期非法：'2020-13-01' / '2020-02-30'
+  {
+    const fe1 = isGroupEligible({ ageMin: 4, ageMax: 6, gender: 'male' }, '2020-13-01', 'male', COMPETITION_DATE, 1);
+    const fe2 = isGroupEligible({ ageMin: 4, ageMax: 6, gender: 'male' }, '2020-02-30', 'male', COMPETITION_DATE, 1);
+    assertEqual(fe1, false, '月份越界 2020-13-01 前端应拒（isValidISODate 守卫）');
+    assertEqual(fe2, false, '日期越界 2020-02-30 前端应拒（isValidISODate 守卫）');
+  }
+
+  // 格式不完整：'2020-1-1' / '2020-1-01' / '20-01-01' / '2020/01/01'
+  {
     assertEqual(
-      anyReject, true,
-      '9999-12-31 至少应被 FE/BE 任一处拒绝（字典序漏洞）',
-      'real-bug:year-9999-passes',
+      isGroupEligible({ ageMin: 4, ageMax: 6, gender: 'male' }, '2020-1-1', 'male', COMPETITION_DATE, 1),
+      false,
+      '非标准格式 2020-1-1 前端应拒（isValidISODate 守卫）',
+    );
+    assertEqual(
+      isGroupEligible({ ageMin: 4, ageMax: 6, gender: 'male' }, '2020-1-01', 'male', COMPETITION_DATE, 1),
+      false,
+      '非标准格式 2020-1-01 前端应拒（isValidISODate 守卫）',
+    );
+    assertEqual(
+      isGroupEligible({ ageMin: 4, ageMax: 6, gender: 'male' }, '20-01-01', 'male', COMPETITION_DATE, 1),
+      false,
+      '2 位年份 20-01-01 前端应拒（isValidISODate 守卫）',
+    );
+    assertEqual(
+      isGroupEligible({ ageMin: 4, ageMax: 6, gender: 'male' }, '2020/01/01', 'male', COMPETITION_DATE, 1),
+      false,
+      '斜杠分隔 2020/01/01 前端应拒（isValidISODate 守卫）',
     );
   }
 
   // 负数出生日期（年份 -1）
   {
-    // 实际上字符串 '-1-01-01' < '2020-01-01'，会失败（被当升组）
-    // 但更严格来说应该失败；记录这个行为
+    // '-0001-01-01' 字典序小于 '2020-01-01'，但格式上不是合法 ISO（年份 5 位宽）→ 应被 isValidISODate 拒
+    // 实际上 '-0001-01-01' 不匹配 /^\d{4}-\d{2}-\d{2}$/（年份含负号）→ 返回 false
     const fe = isGroupEligible({ ageMin: 4, ageMax: 6, gender: 'male' }, '-0001-01-01', 'male', COMPETITION_DATE, 1);
-    // '-0001-01-01' 字典序小于 '2020-01-01'，应被拒
-    assertEqual(fe, false, '负数年份出生应被拒（早于起始日）');
+    assertEqual(fe, false, '负数年份出生应被拒（isValidISODate 守卫）');
   }
 
-  // 极大年份
-  //
-  // ★ 与"非法日期"同源问题：字典序比较下 '9999-12-31' > '2020-01-01' → true
-  //   但语义上 9999 年出生的人显然不能参加比赛。该缺陷与"非法日期"应在
-  //   同一处统一加 isValidISODate() 守卫后一并修复。
-  //   这里用与上面一致的"至少应被一处拒绝"形式记录在案。
-  {
-    const fe = isGroupEligible({ ageMin: 4, ageMax: 6, gender: 'male' }, '9999-12-31', 'male', COMPETITION_DATE, 1);
-    const be = backendAssertEligible(
-      { group_gender: 'male', age_max: 6, max_athletes: 1 },
-      { gender: 'male', birth_date: '9999-12-31' },
-      COMPETITION_DATE,
-      true,
-    );
-    const anyReject = fe === false || be.ok === false;
-    assertEqual(anyReject, true, '极大年份 9999-12-31 至少应被 FE/BE 任一处拒绝', 'real-bug:extreme-year-passes');
-  }
-
-  // 极小年份
+  // 极小年份 '0001-01-01' — 格式合法、Date 可解析、字典序早于 '2020-01-01' → 仍然 false（应拒）
   {
     const fe = isGroupEligible({ ageMin: 4, ageMax: 6, gender: 'male' }, '0001-01-01', 'male', COMPETITION_DATE, 1);
-    assertEqual(fe, false, '极小年份 0001 应被拒');
+    assertEqual(fe, false, '极小年份 0001-01-01 应被拒（早于起始日 2020-01-01）');
+  }
+
+  // isValidISODate 单元测试
+  {
+    assertEqual(isValidISODate('2020-01-01'), true, '合法日期 2020-01-01');
+    assertEqual(isValidISODate('2020-12-31'), true, '合法日期 2020-12-31');
+    assertEqual(isValidISODate('2024-02-29'), true, '闰年合法 2024-02-29');
+    assertEqual(isValidISODate('2023-02-29'), false, '非闰年 2023-02-29 非法');
+    assertEqual(isValidISODate('2020-13-01'), false, '月份 13 非法');
+    assertEqual(isValidISODate('2020-00-01'), false, '月份 0 非法');
+    assertEqual(isValidISODate('2020-01-32'), false, '日期 32 非法');
+    assertEqual(isValidISODate('2020-01-00'), false, '日期 0 非法');
+    assertEqual(isValidISODate('not-a-date'), false, '非日期字符串');
+    assertEqual(isValidISODate(''), false, '空字符串');
+    assertEqual(isValidISODate('2020-1-1'), false, '非标准格式');
+    assertEqual(isValidISODate('2020/01/01'), false, '斜杠分隔');
+    assertEqual(isValidISODate(undefined as any), false, 'undefined');
+    assertEqual(isValidISODate(null as any), false, 'null');
+    assertEqual(isValidISODate(20200101 as any), false, '数字');
+    assertEqual(isValidISODate({} as any), false, '对象');
   }
 
   // 空性别

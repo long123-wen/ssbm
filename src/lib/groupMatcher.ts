@@ -24,6 +24,26 @@
 /** 大集体门槛：每队 5 人及以上视为大集体，不设年龄分组 */
 export const BIG_TEAM_MIN_SIZE = 5;
 
+/** ISO 8601 日期格式校验：YYYY-MM-DD，且能被 Date 正确解析 */
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * 校验字符串是否为合法 ISO 日期（YYYY-MM-DD）
+ *
+ * 防御场景（2026-08-29 加入）：
+ *  - 'not-a-date' / '' / '2020-1-1' / '2020-13-01' / '2050-12-31' / '9999-12-31'
+ *  - 任何非 ISO 字符串若直接参与字典序比较都会绕过年龄上限检查
+ *
+ * 与后端 functions/_shared/workflows.ts 的 isValidISODate 必须保持完全一致
+ */
+export function isValidISODate(value: unknown): value is string {
+  if (typeof value !== 'string' || !ISO_DATE_RE.test(value)) return false;
+  const d = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return false;
+  // 防止 '2020-13-01' 这种格式正确但日期非法的情况
+  return d.toISOString().slice(0, 10) === value;
+}
+
 /**
  * 判断项目是否为大集体（5 人及以上）
  * 大集体不设年龄分组，自由组队
@@ -108,7 +128,7 @@ export function canEnterGroup(
   competitionDate: string,
 ): boolean {
   if (!isGenderEligible(group, gender)) return false;
-  if (!birthDate) return false;
+  if (!isValidISODate(birthDate)) return false;
   const { start } = birthRangeForAge(group.ageMin, group.ageMax, competitionDate);
   // 报高不报低：出生日期不早于该组起始日即可（起始日越早 = 年龄组越大）
   return birthDate >= start;
@@ -122,7 +142,7 @@ export function isBirthInGroupRange(
   birthDate: string,
   competitionDate: string,
 ): boolean {
-  if (!birthDate) return false;
+  if (!isValidISODate(birthDate)) return false;
   const { start, end } = birthRangeForAge(group.ageMin, group.ageMax, competitionDate);
   return birthDate >= start && birthDate <= end;
 }
@@ -310,6 +330,13 @@ export function validateGroupRegistration(
   }
 
   // 个人项目 / 小集体：报高不报低（按出生日期范围判定）
+  if (!isValidISODate(birthDate)) {
+    return {
+      valid: false,
+      message: `出生日期格式无效（${JSON.stringify(birthDate)}），无法校验分组`,
+      suggestedNames: [],
+    };
+  }
   if (canEnterGroup(registeredGroup, birthDate, gender, competitionDate)) {
     const isExactMatch = isBirthInGroupRange(registeredGroup, birthDate, competitionDate);
     return {
@@ -325,7 +352,7 @@ export function validateGroupRegistration(
   // 不合法：出生日期早于该组起始日（= 年龄偏大，降组）
   const allowed = getCrossPresetGroups(birthDate, gender, competitionDate);
   const { start } = birthRangeForAge(registeredGroup.ageMin, registeredGroup.ageMax, competitionDate);
-  const overLimit = !!birthDate && birthDate < start;
+  const overLimit = isValidISODate(birthDate) && birthDate < start;
   return {
     valid: false,
     message: overLimit

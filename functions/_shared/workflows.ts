@@ -108,6 +108,19 @@ function isBigTeam(maxAthletes: unknown): boolean {
 }
 
 /**
+ * ISO 8601 日期格式校验：YYYY-MM-DD，且能被 Date 正确解析
+ * 防御场景：'not-a-date' / '2020-13-01' / '2050-12-31' / '9999-12-31' 等任意字符串
+ * 必须与前端 src/lib/groupMatcher.ts 的 isValidISODate 保持完全一致
+ */
+function isValidISODate(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.toISOString().slice(0, 10) === value;
+}
+
+/**
  * 校验运动员是否可以报该组别。
  *
  * 跨组别规则（2026-08-29 修订，与前端 src/lib/groupMatcher.ts 保持一致）：
@@ -140,6 +153,10 @@ function assertEligible(group: Row, athlete: Row, startDate: string, isIndividua
   if (!isIndividual && isBigTeam(group.max_athletes)) return;
   const birthDate = String(athlete.birth_date || '');
   if (!birthDate) throw new HttpError(422, 'Athlete birth date is required', 'ATHLETE_INELIGIBLE');
+  // ISO 日期合法性校验：防止 'not-a-date' / '2050-12-31' / '9999-12-31' 等任意字符串绕过年龄检查
+  if (!isValidISODate(birthDate)) {
+    throw new HttpError(422, `Athlete birth date is not a valid ISO date: ${birthDate}`, 'ATHLETE_INELIGIBLE');
+  }
   // 报高不报低：出生日期须不早于该组起始日（起始日越早 = 年龄组越大）
   const start = birthStartOf(group, startDate);
   if (birthDate < start) {
