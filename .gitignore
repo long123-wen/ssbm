@@ -25,6 +25,10 @@ d1-backup-*.sql
 # One-off debug/ad-hoc scripts
 _check_*.py
 
+# Test bundles (esbuild output for one-off validation scripts)
+.test-bundle.mjs
+.test-bundle.*.mjs
+
 # Environment files (contains secrets)
 .env
 .env.local
