@@ -57,28 +57,38 @@ export function useClubAuth() {
 }
 
 export function useAdminAuth() {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUser, setCurrentUser] = useState<import('@/types').AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
     adminAuth.restoreSession()
-      .then(user => { if (active) setIsAdmin(Boolean(user)); })
-      .catch(() => { if (active) setIsAdmin(false); })
+      .then(user => { if (active) setCurrentUser(user); })
+      .catch(() => { if (active) setCurrentUser(null); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
 
   const login = async (user: string, pass: string): Promise<boolean> => {
-    const ok = await adminAuth.login(user, pass);
-    if (ok) setIsAdmin(true);
-    return ok;
+    const loggedInUser = await adminAuth.login(user, pass);
+    const nextUser = loggedInUser ? adminAuth.getCurrentUser() : null;
+    setCurrentUser(nextUser);
+    return Boolean(loggedInUser);
   };
 
   const logout = () => {
     adminAuth.logout();
-    setIsAdmin(false);
+    setCurrentUser(null);
   };
 
-  return { isAdmin, loading, login, logout };
+  const refresh = async () => {
+    try {
+      const user = await adminAuth.restoreSession();
+      setCurrentUser(user);
+    } catch {
+      setCurrentUser(null);
+    }
+  };
+
+  return { isAdmin: Boolean(currentUser), currentUser, loading, login, logout, refresh };
 }

@@ -368,7 +368,7 @@ export async function cancelClubRegistrations(request: Request, env: Env, actor:
   const competitionId = requiredId(body.competitionId, 'competitionId');
   const teamProfileId = optionalId(body.teamProfileId, 'teamProfileId');
   const rows = await env.REGISTRATION_DB.prepare(`SELECT id FROM registrations WHERE club_id = ? AND competition_id = ? AND COALESCE(team_profile_id, '') = COALESCE(?, '') AND status IN ('pending','confirmed','rejected')`).bind(actor.userId, competitionId, teamProfileId).all<Row>();
-  const ids = rows.results.map(row => String(row.id));
+  const ids = (rows.results || []).map(row => String(row.id));
   if (!ids.length) return { status: 200, data: { deleted: 0, ids: [] } };
   const statements: D1PreparedStatement[] = [];
   for (const id of ids) {

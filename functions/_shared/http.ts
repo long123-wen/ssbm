@@ -76,7 +76,9 @@ export function supabaseResponse<T>(
 
 export function errorResponse(request: Request, env: Env, id: string, error: unknown, supabase = false): Response {
   const rawMessage = error instanceof Error ? error.message : String(error);
-  const databaseError = !(error instanceof HttpError) && /GROUP_CAPACITY_EXCEEDED/i.test(rawMessage)
+  const databaseError = !(error instanceof HttpError) && /LIMIT_CONFIGS_QUOTA_EXCEEDED/i.test(rawMessage)
+    ? new HttpError(409, '报名限额已达到，请选择其他项目或分组', 'REGISTRATION_QUOTA_EXCEEDED')
+    : !(error instanceof HttpError) && /GROUP_CAPACITY_EXCEEDED/i.test(rawMessage)
     ? new HttpError(409, '该组别报名人数已满', 'GROUP_CAPACITY_EXCEEDED')
     : !(error instanceof HttpError) && /DUPLICATE_ENTRY/i.test(rawMessage)
       ? new HttpError(409, 'A duplicate event entry already exists', 'DUPLICATE_ENTRY')

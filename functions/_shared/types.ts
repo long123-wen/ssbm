@@ -45,6 +45,7 @@ export interface SessionPrincipal {
   userId: string;
   sessionId: string;
   expiresAt: string;
+  mustResetPassword?: boolean;
 }
 
 export interface FunctionContext<E = Env> {

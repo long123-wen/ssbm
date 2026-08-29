@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useAdminAuth } from '@/hooks/useAuth';
 import AdminLogin from './AdminLogin';
+import AdminPasswordReset from './AdminPasswordReset';
 import AdminDashboard from './AdminDashboard';
 import CompetitionSelector from './CompetitionSelector';
 import type { Competition } from '@/types';
 import { Loader2 } from 'lucide-react';
 
 export default function AdminApp() {
-  const { isAdmin, loading, login, logout } = useAdminAuth();
+  const { isAdmin, currentUser, loading, login, logout, refresh } = useAdminAuth();
   const [activeComp, setActiveComp] = useState<Competition | null>(null);
 
   // 恢复上次选择的赛事（可选）
@@ -30,6 +31,16 @@ export default function AdminApp() {
 
   if (!isAdmin) {
     return <AdminLogin onLogin={login} />;
+  }
+
+  // 强制改密：被标记 reset_required 的账号只能进入改密页
+  if (currentUser?.mustResetPassword) {
+    return (
+      <AdminPasswordReset
+        onComplete={() => { void refresh(); }}
+        onLogout={() => { logout(); }}
+      />
+    );
   }
 
   if (!activeComp) {

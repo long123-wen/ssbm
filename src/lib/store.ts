@@ -991,8 +991,17 @@ export const adminUserStore = {
       throw error;
     }
     if (!data) return null;
-    const row = ((data as Record<string, unknown>).admin || (data as Record<string, unknown>).user || data) as Record<string, unknown>;
-    return mapAdminUser(row);
+    const payload = data as Record<string, unknown>;
+    const row = (payload.admin || payload.user || data) as Record<string, unknown>;
+    return mapAdminUser({ ...row, reset_required: payload.must_reset_password === true ? 1 : row.reset_required });
+  },
+  async resetPassword(password: string, confirmPassword: string): Promise<AdminUser> {
+    const { data, error } = await apiAuth.adminResetPassword(password, confirmPassword);
+    if (error || !data) throw error || new Error('密码修改失败');
+    const payload = data as Record<string, unknown>;
+    const user = payload.user;
+    if (!user || typeof user !== 'object') throw new Error('密码修改后未返回管理员信息');
+    return mapAdminUser({ ...(user as Record<string, unknown>), reset_required: 0 });
   },
   async create(input: { username: string; password: string; displayName: string; role?: string }): Promise<AdminUser> {
     const exist = await this.getByUsername(input.username);
@@ -1200,7 +1209,8 @@ function mapTeamProfile(row: Record<string, unknown>): TeamProfile {
 function mapAdminUser(row: Record<string, unknown>): AdminUser {
   return {
     id: row.id as string, username: row.username as string, displayName: row.display_name as string,
-    role: row.role as UserRole, isActive: row.is_active as boolean,
+    role: row.role as UserRole, isActive: Boolean(row.is_active),
+    mustResetPassword: Boolean(Number(row.reset_required ?? row.must_reset_password ?? 0)),
     createdAt: row.created_at as string, updatedAt: row.updated_at as string,
   };
 }

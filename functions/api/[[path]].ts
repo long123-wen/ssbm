@@ -26,6 +26,7 @@ import {
   loadSessionUser,
   requireSession,
   revokeCurrentSession,
+  resetAdminPassword,
   sessionCookie,
   sha256,
   stripSecrets,
@@ -91,9 +92,10 @@ async function login(
       .bind(await sha256(password), new Date().toISOString(), user.id).run();
   }
   const token = await createSession(env, role, String(user.id), request);
+  const mustResetPassword = role === 'admin' && Number(user.reset_required) === 1;
   const safeUser = stripSecrets(user);
-  waitUntil(audit(env, id, request, { role, userId: String(user.id), sessionId: '', expiresAt: '' }, 'auth.login', table, String(user.id)));
-  return jsonResponse(request, env, id, { data: { role, user: safeUser }, error: null }, 200, {
+  waitUntil(audit(env, id, request, { role, userId: String(user.id), sessionId: '', expiresAt: '', ...(mustResetPassword ? { mustResetPassword: true } : {}) }, 'auth.login', table, String(user.id)));
+  return jsonResponse(request, env, id, { data: { role, user: safeUser, must_reset_password: mustResetPassword }, error: null }, 200, {
     'Set-Cookie': sessionCookie(token, env),
   });
 }
@@ -104,13 +106,27 @@ async function logout(request: Request, env: Env, id: string): Promise<Response>
   return jsonResponse(request, env, id, { data: null, error: null }, 200, { 'Set-Cookie': clearSessionCookie() });
 }
 
+async function resetPassword(request: Request, env: Env, id: string): Promise<Response> {
+  assertMethod(request, 'POST');
+  const session = await requireSession(request, env, ['admin'], true);
+  const body = await readJson<Record<string, unknown>>(request, 16 * 1024);
+  const password = typeof body.password === 'string' ? body.password : '';
+  const confirmPassword = typeof body.confirmPassword === 'string' ? body.confirmPassword : '';
+  if (password.length < 12 || password.length > MAX_PASSWORD_LENGTH) {
+    throw new HttpError(422, 'Password must be 12-256 characters', 'INVALID_PASSWORD');
+  }
+  if (password !== confirmPassword) throw new HttpError(422, 'Passwords do not match', 'PASSWORD_MISMATCH');
+  const user = await resetAdminPassword(env, session, password);
+  return jsonResponse(request, env, id, { data: { role: 'admin', user, must_reset_password: false }, error: null }, 200);
+}
+
 async function sessionInfo(request: Request, env: Env, id: string): Promise<Response> {
   assertMethod(request, 'GET');
   const session = await getSession(request, env);
   if (!session) return jsonResponse(request, env, id, { data: null, error: null }, 200);
   const user = await loadSessionUser(env, session);
   if (!user) throw new HttpError(401, 'Session user no longer exists', 'INVALID_SESSION');
-  return jsonResponse(request, env, id, { data: { role: session.role, user, expires_at: session.expiresAt }, error: null });
+  return jsonResponse(request, env, id, { data: { role: session.role, user, expires_at: session.expiresAt, must_reset_password: Boolean(session.mustResetPassword) }, error: null });
 }
 
 function objectKey(segments: string[]): { bucket: string; key: string } {
@@ -175,6 +191,10 @@ async function dataQuery(
 ): Promise<Response> {
   assertMethod(request, 'POST');
   const session = await getSession(request, env);
+  // 强制改密期间，管理员只允许访问改密与登出端点；通用数据 API 一律拒绝。
+  if (session?.mustResetPassword) {
+    throw new HttpError(403, 'Password reset is required before continuing', 'PASSWORD_RESET_REQUIRED');
+  }
   const body = await readJson<DataQueryRequest>(request);
   const result = await executeDataQuery(env, table, body, session);
   if (body.action !== 'select') {
@@ -285,6 +305,7 @@ export const onRequest: PagesFunction<Env> = async context => {
       return await login(request, env, id, 'club', context.waitUntil.bind(context));
     }
     if (segments[1] === 'auth' && segments[2] === 'logout' && segments.length === 3) return await logout(request, env, id);
+    if (segments[1] === 'auth' && segments[2] === 'admin' && segments[3] === 'reset-password' && segments.length === 4) return await resetPassword(request, env, id);
     if (segments[1] === 'auth' && segments[2] === 'session' && segments.length === 3) return await sessionInfo(request, env, id);
     if (segments[1] === 'storage' && segments.length >= 5) {
       return await storage(request, env, id, segments, context.waitUntil.bind(context));

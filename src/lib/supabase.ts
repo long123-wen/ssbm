@@ -338,6 +338,8 @@ class StorageBucket {
 export const apiAuth = {
   adminLogin: (username: string, password: string) =>
     jsonRequest<Record<string, unknown>>('/auth/admin/login', { username, password }),
+  adminResetPassword: (password: string, confirmPassword: string) =>
+    jsonRequest<Record<string, unknown>>('/auth/admin/reset-password', { password, confirmPassword }),
   clubLogin: (username: string, password: string) =>
     jsonRequest<Record<string, unknown>>('/auth/club/login', { username, password }),
   logout: () => jsonRequest<null>('/auth/logout'),

@@ -14,6 +14,7 @@ export interface AdminUser {
   displayName: string;
   role: UserRole;
   isActive: boolean;
+  mustResetPassword?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -59,7 +60,7 @@ export interface EventGroup {
   gender?: Gender;
   ageMin?: number;
   ageMax?: number;
-  maxRegistrations: number; // 每组限报数量
+  maxRegistrations?: number; // 每组限报数量（已废弃，限报统一由 limit_configs 管理；不传时数据库 DEFAULT 20）
   currentCount: number;     // 当前报名数
   orderIndex: number;
 }

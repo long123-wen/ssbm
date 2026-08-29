@@ -4,6 +4,10 @@ import { HttpError } from './http';
 const COOKIE_NAME = '__Host-rj_session';
 const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const HEX_64 = /^[a-f0-9]{64}$/i;
+const PBKDF2_PREFIX = 'pbkdf2$';
+// Cloudflare workerd enforces PBKDF2 iteration count <= 100000.
+// 100000 is still within OWASP's recommended range (>= 1000 iterations for SHA-256).
+const PBKDF2_ITERATIONS = 100_000;
 
 function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
@@ -14,6 +18,29 @@ export async function sha256(value: string): Promise<string> {
   return bytesToHex(new Uint8Array(digest));
 }
 
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function base64ToBytes(value: string): Uint8Array {
+  const binary = atob(value);
+  return Uint8Array.from(binary, char => char.charCodeAt(0));
+}
+
+async function pbkdf2(password: string, salt: Uint8Array, iterations = PBKDF2_ITERATIONS): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password) as BufferSource, 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: 'SHA-256' }, key, 256);
+  return new Uint8Array(bits);
+}
+
+export async function hashPassword(password: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const digest = await pbkdf2(password, salt);
+  return `${PBKDF2_PREFIX}${PBKDF2_ITERATIONS}$${bytesToBase64(salt)}$${bytesToBase64(digest)}`;
+}
+
 function constantTimeEqual(left: string, right: string): boolean {
   if (left.length !== right.length) return false;
   let result = 0;
@@ -22,7 +49,18 @@ function constantTimeEqual(left: string, right: string): boolean {
 }
 
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
-  if (!HEX_64.test(stored)) return constantTimeEqual(password, stored);
+  if (stored.startsWith(PBKDF2_PREFIX)) {
+    const [, rawIterations, encodedSalt, encodedDigest] = stored.split('$');
+    const iterations = Number(rawIterations);
+    if (!Number.isInteger(iterations) || iterations < 60_000 || iterations > 100_000 || !encodedSalt || !encodedDigest) return false;
+    try {
+      const digest = await pbkdf2(password, base64ToBytes(encodedSalt), iterations);
+      return constantTimeEqual(bytesToBase64(digest), encodedDigest);
+    } catch {
+      return false;
+    }
+  }
+  if (!HEX_64.test(stored)) return false;
   return constantTimeEqual(await sha256(password), stored.toLowerCase());
 }
 
@@ -85,21 +123,43 @@ export async function getSession(request: Request, env: Env): Promise<SessionPri
      WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > ? LIMIT 1`,
   ).bind(tokenHash, now).first<Row>();
   if (!row || (row.user_type !== 'admin' && row.user_type !== 'club')) return null;
+
+  let mustResetPassword = false;
+  if (row.user_type === 'admin') {
+    const user = await env.REGISTRATION_DB.prepare('SELECT is_active, reset_required FROM admin_users WHERE id = ? LIMIT 1')
+      .bind(row.user_id).first<Row>();
+    if (!user || Number(user.is_active) !== 1) return null;
+    mustResetPassword = Number(user.reset_required) === 1;
+  } else {
+    const club = await env.REGISTRATION_DB.prepare('SELECT is_approved FROM clubs WHERE id = ? LIMIT 1')
+      .bind(row.user_id).first<Row>();
+    if (!club || Number(club.is_approved) !== 1) return null;
+  }
+
   const principal: SessionPrincipal = {
     sessionId: String(row.id),
     role: row.user_type,
     userId: String(row.user_id),
     expiresAt: String(row.expires_at),
+    ...(mustResetPassword ? { mustResetPassword: true } : {}),
   };
   await env.REGISTRATION_DB.prepare('UPDATE sessions SET last_seen_at = ? WHERE id = ?')
     .bind(now, principal.sessionId).run();
   return principal;
 }
 
-export async function requireSession(request: Request, env: Env, roles: Array<'admin' | 'club'> = ['admin', 'club']): Promise<SessionPrincipal> {
+export async function requireSession(
+  request: Request,
+  env: Env,
+  roles: Array<'admin' | 'club'> = ['admin', 'club'],
+  allowPasswordReset = false,
+): Promise<SessionPrincipal> {
   const session = await getSession(request, env);
   if (!session) throw new HttpError(401, 'Authentication required', 'UNAUTHENTICATED');
   if (!roles.includes(session.role)) throw new HttpError(403, 'Insufficient permissions', 'FORBIDDEN');
+  if (session.mustResetPassword && !allowPasswordReset) {
+    throw new HttpError(403, 'Password reset is required before continuing', 'PASSWORD_RESET_REQUIRED');
+  }
   return session;
 }
 
@@ -118,6 +178,20 @@ export function stripSecrets(row: Row | null): Row | null {
   delete safe.ip_hash;
   delete safe.token_hash;
   return safe;
+}
+
+export async function resetAdminPassword(env: Env, session: SessionPrincipal, password: string): Promise<Row | null> {
+  if (session.role !== 'admin') throw new HttpError(403, 'Only administrators can reset a password', 'FORBIDDEN');
+  const hashed = await hashPassword(password);
+  const now = new Date().toISOString();
+  const result = await env.REGISTRATION_DB.prepare(
+    `UPDATE admin_users SET password_hash = ?, reset_required = 0, reset_metadata = ?, updated_at = ?
+     WHERE id = ? AND is_active = 1`,
+  ).bind(hashed, JSON.stringify({ changed_at: now, changed_by: session.userId }), now, session.userId).run();
+  if (!result.meta?.changes) throw new HttpError(409, 'Password reset could not be completed', 'PASSWORD_RESET_FAILED');
+  await env.REGISTRATION_DB.prepare('UPDATE sessions SET revoked_at = ? WHERE user_type = \'admin\' AND user_id = ? AND id <> ? AND revoked_at IS NULL')
+    .bind(now, session.userId, session.sessionId).run();
+  return loadSessionUser(env, session);
 }
 
 export async function loadSessionUser(env: Env, session: SessionPrincipal): Promise<Row | null> {
