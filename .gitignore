@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+out/
+release-*/
+dist-validation-*/
+dist.zip
+
+# Generated / temp artifacts
+generated-avatars/
+load-test-*.json
+
+# Wrangler (Cloudflare) local state & cache
+.wrangler/
+.dev.vars
+.wrangler-state/
+
+# D1 database dumps (contain session tokens — never commit)
+*.sql
+d1-backup-*.sql
+
+# Whitelist: handwritten DDL migrations are pure schema, safe to track
+# (D1 dumps / backups above still take precedence because of "last match wins" semantics
+# only when the ignore patterns are non-overlapping; here `d1-backup-*.sql` already covers
+# the dump filename prefix, and `*.sql` is broad, so we use a `!` re-include to carve out
+# the migrations directory only.)
+!migrations/*.sql
+
+# One-off debug/ad-hoc scripts
+_check_*.py
+
+# Test bundles (esbuild output for one-off validation scripts)
+.test-bundle.mjs
+.test-bundle.*.mjs
+
+# Environment files (contains secrets)
+.env
+.env.local
+.env.*.local
+.env.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Supabase
+supabase/.temp/

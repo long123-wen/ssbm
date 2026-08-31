@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>跳绳赛事报名系统 — 用户使用说明</title>
+  <style>
+    :root {
+      --blue: #3b82f6;
+      --blue-dark: #1e40af;
+      --green: #16a34a;
+      --amber: #f59e0b;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-500: #64748b;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      line-height: 1.8;
+      color: var(--slate-700);
+      background: #fff;
+    }
+
+    /* Cover */
+    .cover {
+      background: linear-gradient(135deg, var(--slate-900) 0%, #1e3a5f 50%, var(--blue-dark) 100%);
+      color: #fff;
+      padding: 80px 40px 60px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .cover::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .cover-content { position: relative; z-index: 1; }
+    .cover-icon {
+      width: 80px; height: 80px;
+      background: var(--blue);
+      border-radius: 20px;
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 30px rgba(59,130,246,0.4);
+    }
+    .cover h1 { font-size: 36px; font-weight: 800; margin-bottom: 12px; }
+    .cover p { font-size: 16px; opacity: 0.7; max-width: 500px; margin: 0 auto 30px; }
+    .cover .version-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 6px 18px;
+      font-size: 13px;
+    }
+
+    /* TOC */
+    .toc {
+      max-width: 800px; margin: -30px auto 0; padding: 0 20px;
+      position: relative; z-index: 2;
+    }
+    .toc-inner {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      padding: 30px 40px;
+    }
+    .toc h2 {
+      font-size: 18px; color: var(--slate-800); margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--slate-200);
+    }
+    .toc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 30px;
+    }
+    .toc a {
+      color: var(--slate-500);
+      text-decoration: none;
+      font-size: 14px;
+      padding: 6px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: color 0.2s;
+    }
+    .toc a:hover { color: var(--blue); }
+    .toc .toc-num {
+      width: 24px; height: 24px;
+      background: var(--slate-100);
+      border-radius: 6px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: var(--slate-500);
+      flex-shrink: 0;
+    }
+
+    /* Content */
+    .content {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .section {
+      margin-bottom: 50px;
+      scroll-margin-top: 20px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .section-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .section-header h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--slate-800);
+    }
+    .section-header p {
+      font-size: 13px;
+      color: var(--slate-500);
+      margin-top: 2px;
+    }
+
+    .subsection {
+      margin-bottom: 30px;
+    }
+    .subsection h3 {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--slate-800);
+      margin-bottom: 12px;
+      padding-left: 14px;
+      border-left: 3px solid var(--blue);
+    }
+
+    /* Screenshot mockup */
+    .screenshot {
+      background: var(--slate-100);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 16px 0;
+      border: 1px solid var(--slate-200);
+    }
+    .screenshot-bar {
+      background: #fff;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-bottom: 1px solid var(--slate-200);
+    }
+    .screenshot-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    .screenshot-url {
+      margin-left: 10px;
+      background: var(--slate-100);
+      border-radius: 6px;
+      padding: 4px 14px;
+      font-size: 12px;
+      color: var(--slate-500);
+      flex: 1;
+      max-width: 300px;
+    }
+    .screenshot-body {
+      padding: 20px;
+      min-height: 100px;
+    }
+    .screenshot-caption {
+      text-align: center;
+      font-size: 12px;
+      color: var(--slate-500);
+      padding: 8px 14px 12px;
+      background: #fff;
+      border-top: 1px solid var(--slate-200);
+    }
+
+    /* Step list */
+    .steps {
+      counter-reset: step;
+      list-style: none;
+      padding: 0;
+    }
+    .steps li {
+      counter-increment: step;
+      padding: 12px 0 12px 50px;
+      position: relative;
+      border-left: 2px solid var(--slate-200);
+      margin-left: 16px;
+    }
+    .steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: -14px;
+      top: 14px;
+      width: 26px;
+      height: 26px;
+      background: var(--blue);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      border: 3px solid #fff;
+      box-shadow: 0 2px 6px rgba(59,130,246,0.3);
+    }
+    .steps li:last-child { border-left-color: transparent; }
+    .step-title {
+      font-weight: 600;
+      color: var(--slate-800);
+      margin-bottom: 4px;
+    }
+    .step-desc {
+      font-size: 14px;
+      color: var(--slate-500);
+    }
+
+    /* UI mockup inside screenshot */
+    .ui-card {
+      background: #fff;
+      border-radius: 10px;
+      border: 1px solid var(--slate-200);
+      padding: 16px;
+      margin: 8px 0;
+    }
+    .ui-btn {
+      display: inline-block;
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .ui-btn-blue { background: var(--blue); color: #fff; }
+    .ui-btn-green { background: var(--green); color: #fff; }
+    .ui-btn-outline {
+      background: #fff;
+      color: var(--slate-700);
+      border: 1px solid var(--slate-200);
+    }
+    .ui-input {
+      display: block;
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--slate-500);
+      background: var(--slate-100);
+    }
+    .ui-label {
+      font-size: 12px;
+      color: var(--slate-700);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    .ui-form-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .ui-form-row > div { flex: 1; }
+    .ui-tag {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .ui-tag-green { background: #dcfce7; color: var(--green); }
+    .ui-tag-amber { background: #fef3c7; color: #d97706; }
+    .ui-tag-blue { background: #dbeafe; color: var(--blue); }
+    .ui-tag-red { background: #fee2e2; color: #dc2626; }
+
+    /* Table */
+    .ui-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin: 12px 0;
+    }
+    .ui-table th {
+      background: var(--slate-100);
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--slate-700);
+      border-bottom: 2px solid var(--slate-200);
+    }
+    .ui-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--slate-200);
+      color: var(--slate-500);
+    }
+    .ui-table tr:last-child td { border-bottom: none; }
+
+    /* Sidebar mock */
+    .ui-sidebar {
+      background: var(--slate-900);
+      color: #fff;
+      border-radius: 10px;
+      padding: 16px 0;
+      min-height: 300px;
+      width: 200px;
+      margin: 8px 0;
+    }
+    .ui-sidebar-logo {
+      padding: 8px 16px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ui-sidebar-logo-icon {
+      width: 32px; height: 32px;
+      background: var(--blue);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .ui-sidebar-item {
+      padding: 10px 16px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+    }
+    .ui-sidebar-item.active {
+      background: rgba(59,130,246,0.2);
+      color: #fff;
+      border-right: 3px solid var(--blue);
+    }
+
+    /* Tip box */
+    .tip {
+      background: #eff6ff;
+      border-left: 3px solid var(--blue);
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      margin: 12px 0;
+      font-size: 13px;
+      color: var(--slate-700);
+    }
+    .tip strong { color: var(--blue-dark); }
+
+    .warning {
+      background: #fffbeb;
+      border-left: 3px solid var(--amber);
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      margin: 12px 0;
+      font-size: 13px;
+      color: var(--slate-700);
+    }
+    .warning strong { color: #d97706; }
+
+    /* Feature grid */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 12px 0;
+    }
+    .feature-card {
+      background: #fff;
+      border: 1px solid var(--slate-200);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .feature-card h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--slate-800);
+      margin-bottom: 6px;
+    }
+    .feature-card p {
+      font-size: 12px;
+      color: var(--slate-500);
+    }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: var(--slate-200);
+      margin: 40px 0;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 30px;
+      font-size: 13px;
+      color: var(--slate-500);
+      border-top: 1px solid var(--slate-200);
+    }
+
+    /* Mock mobile layout */
+    .ui-mobile-frame {
+      width: 280px;
+      margin: 0 auto;
+      border-radius: 20px;
+      border: 4px solid var(--slate-800);
+      overflow: hidden;
+      background: #fff;
+    }
+    .ui-mobile-statusbar {
+      background: var(--slate-800);
+      color: #fff;
+      font-size: 10px;
+      padding: 4px 16px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .cover { padding: 50px 20px 40px; }
+      .cover h1 { font-size: 26px; }
+      .toc-grid { grid-template-columns: 1fr; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .ui-form-row { flex-direction: column; gap: 8px; }
+      .steps li { padding-left: 40px; }
+    }
+
+    /* Print */
+    @media print {
+      .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .screenshot { break-inside: avoid; }
+      .section { break-before: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ==================== COVER ==================== -->
+<div class="cover">
+  <div class="cover-content">
+    <div class="cover-icon">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+    </div>
+    <h1>跳绳赛事报名系统</h1>
+    <p>用户使用说明 · 图文版</p>
+    <span class="version-badge">v2.0 · 云端版</span>
+  </div>
+</div>
+
+<!-- ==================== TOC ==================== -->
+<div class="toc">
+  <div class="toc-inner">
+    <h2>目录</h2>
+    <div class="toc-grid">
+      <a href="#s1"><span class="toc-num">1</span> 系统首页</a>
+      <a href="#s6"><span class="toc-num">6</span> 在线报名</a>
+      <a href="#s2"><span class="toc-num">2</span> 注册账号</a>
+      <a href="#s7"><span class="toc-num">7</span> 我的报名</a>
+      <a href="#s3"><span class="toc-num">3</span> 登录系统</a>
+      <a href="#s8"><span class="toc-num">8</span> 管理端概览</a>
+      <a href="#s4"><span class="toc-num">4</span> 选择赛事</a>
+      <a href="#s9"><span class="toc-num">9</span> 赛事管理</a>
+      <a href="#s5"><span class="toc-num">5</span> 队伍设置</a>
+      <a href="#s10"><span class="toc-num">10</span> 报名审核</a>
+      <a href="#s5b"><span class="toc-num">5b</span> 团队管理</a>
+      <a href="#s11"><span class="toc-num">11</span> 秩序册</a>
+      <a href="#s12"><span class="toc-num">12</span> 账号管理</a>
+    </div>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- ==================== SECTION 1: 系统首页 ==================== -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <div class="section-icon" style="background:#dbeafe;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-5"/></svg>
+    </div>
+    <div>
+      <h2>一、系统首页</h2>
+      <p>访问系统网址，进入首页选择身份入口</p>
+    </div>
+  </div>
+
+  <p>打开浏览器，输入系统地址（如 <strong>www.dztsbmxt.top</strong>），将看到系统首页。首页提供两个入口：</p>
+
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <div class="screenshot-dot" style="background:#ef4444;"></div>
+      <div class="screenshot-dot" style="background:#eab308;"></div>
+      <div class="screenshot-dot" style="background:#22c55e;"></div>
+      <div class="screenshot-url">www.dztsbmxt.top</div>
+    </div>
+    <div class="screenshot-body" style="text-align:center; background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); padding: 30px;">
+      <div style="color:#fff; font-size:24px; font-weight:800; margin-bottom:6px;">跳绳赛事管理系统</div>
+      <div style="color:rgba(255,255,255,0.5); font-size:12px; margin-bottom:24px;">专业赛事管理平台 · 支持500+人规模比赛</div>
+      <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+        <div style="background:#2563eb; border-radius:16px; padding:20px 30px; text-align:left; width:240px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <div style="width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:15px;">后台管理系统</div>
+              <div style="font-size:11px;opacity:0.7;">赛事 · 项目 · 分组 · 秩序册</div>
+            </div>
+          </div>
+          <div style="font-size:11px;opacity:0.5;">管理员使用</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); border-radius:16px; padding:20px 30px; text-align:left; width:240px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <div style="width:36px;height:36px;background:rgba(255,255,255,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:15px;">在线自助报名</div>
+              <div style="font-size:11px;opacity:0.7;">俱乐部 · 学校 · 运动员报名</div>
+            </div>
+          </div>
+          <div style="font-size:11px;opacity:0.5;">参赛队伍使用</div>
+        </div>
+      </div>
+    </div>
+    <div class="screenshot-caption">系统首页 — 选择对应的入口进入</div>
+  </div>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h4>后台管理系统</h4>
+      <p>赛事管理员使用，用于创建赛事、设置项目分组、审核报名、生成秩序册</p>
+    </div>
+    <div class="feature-card">
+      <h4>在线自助报名</h4>
+      <p>参赛队伍（俱乐部/学校）使用，注册账号后管理队伍信息并提交报名</p>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ==================== SECTION 2: 注册账号 ==================== -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <div class="section-icon" style="background:#dcfce7;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+    </div>
+    <div>
+      <h2>二、注册账号</h2>
+      <p>参赛队伍首次使用需先注册账号</p>
+    </div>
+  </div>
+
+  <p>在首页点击「在线自助报名」进入登录页，然后点击「注册新账号」。</p>
+
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <div class="screenshot-dot" style="background:#ef4444;"></div>
+      <div class="screenshot-dot" style="background:#eab308;"></div>
+      <div class="screenshot-dot" style="background:#22c55e;"></div>
+      <div class="screenshot-url">www.dztsbmxt.top/#club</div>
+    </div>
+    <div class="screenshot-body">
+      <div class="ui-card" style="max-width:450px; margin:0 auto;">
+        <div style="text-align:center; margin-bottom:16px;">
+          <div style="width:48px;height:48px;background:#16a34a;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+          </div>
+          <div style="font-size:18px;font-weight:700;color:var(--slate-800);">注册俱乐部账号</div>
+          <div style="font-size:12px;color:var(--slate-500);">填写信息，完成注册后可在线报名参赛</div>
+        </div>
+        <div style="background:#eff6ff; border-radius:8px; padding:8px 12px; font-size:12px; color:var(--blue); margin-bottom:12px;">
+          带 <span style="color:#ef4444;">*</span> 为必填项
+        </div>
+        <div class="ui-form-row">
+          <div><div class="ui-label">登录用户名 <span style="color:red">*</span></div><div class="ui-input">字母数字组合</div></div>
+          <div><div class="ui-label">俱乐部/学校名称 <span style="color:red">*</span></div><div class="ui-input">完整名称</div></div>
+        </div>
+        <div class="ui-form-row">
+          <div><div class="ui-label">联系人姓名 <span style="color:red">*</span></div><div class="ui-input">领队或负责人</div></div>
+          <div><div class="ui-label">联系电话 <span style="color:red">*</span></div><div class="ui-input">手机号码</div></div>
+        </div>
+        <div class="ui-form-row">
+          <div><div class="ui-label">登录密码 <span style="color:red">*</span></div><div class="ui-input">至少6位</div></div>
+          <div><div class="ui-label">确认密码 <span style="color:red">*</span></div><div class="ui-input">再次输入密码</div></div>
+        </div>
+        <div class="ui-btn ui-btn-green" style="width:100%; padding:10px; margin-top:8px;">完成注册</div>
+        <div style="text-align:center; margin-top:12px; font-size:13px; color:var(--slate-500);">
+          已有账号？<a href="#" style="color:var(--blue);font-weight:600;">立即登录</a>
+        </div>
+      </div>
+    </div>
+    <div class="screenshot-caption">注册页面 — 填写基本信息完成账号注册</div>
+  </div>
+
+  <div class="tip">
+    <strong>提示：</strong>用户名为登录凭证，注册后不可修改。密码至少6位字符，建议使用字母+数字组合。
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ==================== SECTION 3: 登录系统 ==================== -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef3c7;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </div>
+    <div>
+      <h2>三、登录系统</h2>
+      <p>注册完成后，使用用户名和密码登录</p>
+    </div>
+  </div>
+
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <div class="screenshot-dot" style="background:#ef4444;"></div>
+      <div class="screenshot-dot" style="background:#eab308;"></div>
+      <div class="screenshot-dot" style="background:#22c55e;"></div>
+      <div class="screenshot-url">www.dztsbmxt.top/#club</div>
+    </div>
+    <div class="screenshot-body">
+      <div class="ui-card" style="max-width:380px; margin:0 auto;">
+        <div style="text-align:center; margin-bottom:16px;">
+          <div style="font-size:18px;font-weight:700;color:var(--slate-800);">登录</div>
+          <div style="font-size:12px;color:var(--slate-500);">输入账号密码进入系统</div>
+        </div>
+        <div style="margin-bottom:12px;"><div class="ui-label">用户名</div><div class="ui-input">输入注册时的用户名</div></div>
+        <div style="margin-bottom:16px;"><div class="ui-label">密码</div><div class="ui-input">输入密码</div></div>
+        <div class="ui-btn ui-btn-blue" style="width:100%; padding:10px;">登 录</div>
+        <div style="text-align:center; margin-top:12px; font-size:13px; color:var(--slate-500);">
+          没有账号？<a href="#" style="color:var(--green);font-weight:600;">注册新账号</a>
+        </div>
+      </div>
+    </div>
+    <div class="screenshot-caption">登录页面</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ==================== SECTION 4: 选择赛事 ==================== -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <div class="section-icon" style="background:#ede9fe;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+    </div>
+    <div>
+      <h2>四、选择赛事</h2>
+      <p>登录后选择要参加的赛事</p>
+    </div>
+  </div>
+
+  <p>登录成功后，系统显示当前开放的赛事列表。点击要参加的赛事即可进入。</p>
+
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <div class="screenshot-dot" style="background:#ef4444;"></div>
+      <div class="screenshot-dot" style="background:#eab308;"></div>
+      <div class="screenshot-dot" style="background:#22c55e;"></div>
+      <div class="screenshot-url">选择赛事</div>
+    </div>
+    <div class="screenshot-body">
+      <div style="max-width:500px; margin:0 auto;">
+        <div style="text-align:center; margin-bottom:16px;">
+          <div style="font-size:16px; font-weight:700; color:var(--slate-800);">选择参赛赛事</div>
+          <div style="font-size:12px; color:var(--slate-500);">当前账号：御绳道跳绳俱乐部</div>
+        </div>
+        <div class="ui-card" style="cursor:pointer; border-left:3px solid var(--green);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-weight:700;color:var(--slate-800);">2026年全国跳绳锦标赛</div>
+              <div style="font-size:12px;color:var(--slate-500);margin-top:4px;">
+                📍 北京市体育馆 &nbsp; 📅 2026-07-15 ~ 07-18
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <span class="ui-tag ui-tag-green">报名中</span>
+              <div style="font-size:11px;color:var(--slate-500);margin-top:4px;">截止 07-10</div>
+            </div>
+          </div>
+        </div>
+        <div class="ui-card" style="cursor:pointer; border-left:3px solid var(--amber); margin-top:8px; opacity:0.6;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-weight:700;color:var(--slate-800);">2026年市青少年跳绳赛</div>
+              <div style="font-size:12px;color:var(--slate-500);margin-top:4px;">
+                📍 市体育中心 &nbsp; 📅 2026-08-01 ~ 08-02
+              </div>
+            </div>
+            <span class="ui-tag ui-tag-amber">草稿</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="screenshot-caption">赛事选择页面 — 仅显示状态为"报名中"的赛事可报名</div>
+  </div>
+
+  <div class="tip">
+    <strong>注意：</strong>只有状态为"报名中"（绿色标签）的赛事可以报名。"草稿"或"已截止"状态的赛事暂不可操作。
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ==================== SECTION 5: 队伍设置 ==================== -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fce7f3;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    </div>
+    <div>
+      <h2>五、队伍设置</h2>
+      <p>首次参赛需创建队伍资料</p>
+    </div>
+  </div>
+
+  <p>选择赛事后，如果还没有创建队伍，系统会自动引导你设置队伍信息。一个账号可以创建多支队伍（如"1队"、"2队"），每支队伍的数据相互隔离。</p>
+
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <div class="screenshot-dot" style="background:#ef4444;"></div>
+      <div class="screenshot-dot" style="background:#eab308;"></div>
+      <div class="screenshot-dot" style="background:#22c55e;"></div>
+      <div class="screenshot-url">队伍设置</div>
+    </div>
+    <div class="screenshot-body">
+      <div class="ui-card" style="max-width:500px; margin:0 auto;">
+        <div style="text-align:center; margin-bottom:20px;">
+          <div style="width:56px;height:56px;background:#f1f5f9;border-radius:16px;border:2px dashed var(--slate-300);display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+          </div>
+          <div style="font-size:14px;font-weight:600;color:var(--slate-800);">上传队徽（可选）</div>
+          <div style="font-size:11px;color:var(--slate-500);">支持 JPG、PNG、SVG，不超过 1MB</div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <div class="ui-label">队伍名称 <span style="color:red">*</span></div>
+          <div class="ui-input" style="color:var(--slate-800);">御绳道跳绳1队</div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <div class="ui-label">队伍口号（可选）</div>
+          <div class="ui-input">超越自我，勇攀高峰</div>
+        </div>
+        <div style="display:flex; gap:12px;">
+          <div class="ui-btn ui-btn-outline" style="flex:1;">返回</div>
+          <div class="ui-btn ui-btn-blue" style="flex:1;">保存并继续</div>
+        </div>
+      </div>
+    </div>
+    <div class="screenshot-caption">队伍设置页面 — 填写队名和口号，上传队徽</div>
+  </div>
+
+  <div class="tip">
+    <strong>多队伍支持：</strong>在同一赛事下，可以创建多支队伍（如"1队"、"2队"），每支队伍的人员和报名数据完全独立，互不影响。
+  </div>
+</div>
+
+<!-- ==================== SECTION 5b: 团队管理 ==================== -->
+<div class="section" id="s5b">
+  <div class="section-header">
+    <div class="section-icon" style="background:#e0f2fe;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    </div>
+    <div>
+      <h2>五（续）、团队管理</h2>
+      <p>管理领队、教练员、运动员信息</p>
+    </div>
+  </div>
+
+  <p>进入主界面后，左侧导航栏的「团队管理」用于管理本队伍的人员信息。</p>
+
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <div class="screenshot-dot" style="background:#ef4444;"></div>
+      <div class="screenshot-dot" style="background:#eab308;"></div>
+      <div class="screenshot-dot" style="background:#22c55e;"></div>
+      <div class="screenshot-url">团队管理</div>
+    </div>
+    <div class="screenshot-body">
+      <div style="display:flex; gap:16px;">
+        <div class="ui-sidebar" style="min-height:240px;">
+          <div class="ui-sidebar-logo">
+            <div class="ui-sidebar-logo-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+            </div>
+            <div style="font-size:12px;">
+              <div style="font-weight:700;">自助报名系统</div>
+              <div style="opacity:0.5;font-size:10px;">御绳道跳绳俱乐部</div>
+            </div>
+          </div>
+          <div class="ui-sidebar-item active">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            团队管理
+          </div>
+          <div class="ui-sidebar-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/></svg>
+            在线报名
+          </div>
+          <div class="ui-sidebar-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            我的报名
+          </div>
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex; gap:8px; margin-bottom:16px;">
+            <div class="ui-btn ui-btn-blue" style="font-size:12px; padding:6px 14px;">+ 添加领队</div>
+            <div class="ui-btn ui-btn-blue" style="font-size:12px; padding:6px 14px;">+ 添加教练</div>
+            <div class="ui-btn ui-btn-blue" style="font-size:12px; padding:6px 14px;">+ 添加运动员</div>
+            <div class="ui-btn ui-btn-outline" style="font-size:12px; padding:6px 14px;">📊 批量导入</div>
+          </div>
+          <!-- Tabs -->
+          <div style="display:flex; gap:0; margin-bottom:16px; border-bottom:2px solid var(--slate-200);">
+            <div style="padding:8px 16px; font-size:13px; font-weight:600; color:var(--blue); border-bottom:2px solid var(--blue); margin-bottom:-2px;">领队</div>
+            <div style="padding:8px 16px; font-size:13px; color:var(--slate-500);">教练员</div>
+            <div style="padding:8px 16px; font-size:13px; color:var(--slate-500);">运动员</div>
+          </div>
+          <table class="ui-table">
+            <thead>
+              <tr><th>姓名</th><th>电话</th><th>职务</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr><td style="color:var(--slate-800);font-weight:600;">张三</td><td>138****1234</td><td>领队</td><td><span style="color:var(--blue);cursor:pointer;font-size:12px;">编辑</span> | <span style="color:#ef4444;cursor:pointer;font-size:12px;">删除</span></td></tr>
+              <tr><td style="color:var(--slate-800);font-weight:600;">李四</td><td>139****5678</td><td>副领队</td><td><span style="color:var(--blue);cursor:pointer;font-size:12px;">编辑</span> | <span style="color:#ef4444;cursor:pointer;font-size:12px;">删除</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="screenshot-caption">团队管理页面 — 分三个标签页管理领队、教练员和运动员</div>
+  </div>
+
+  <div class="subsection">
+    <h3>添加运动员</h3>
+    <p>点击「+ 添加运动员」按钮，填写以下信息：</p>
+    <div class="screenshot">
+      <div class="screenshot-bar">
+        <div class="screenshot-dot" style="background:#ef4444;"></div>
+        <div class="screenshot-dot" style="background:#eab308;"></div>
+        <div class="screenshot-dot" style="background:#22c55e;"></div>
+        <div class="screenshot-url">添加运动员</div>
+      </div>
+      <div class="screenshot-body">
+        <div class="ui-card" style="max-width:420px; margin:0 auto;">
+          <div style="margin-bottom:12px;">
+            <div class="ui-label">姓名 <span style="color:red">*</span></div>
+            <div class="ui-input">运动员真实姓名</div>
+          </div>
+          <div class="ui-form-row">
+            <div><div class="ui-label">性别 <span style="color:red">*</span></div>
+              <div class="ui-input" style="display:flex;align-items:center;">
+                <select style="border:none;background:transparent;outline:none;width:100%;font-size:13px;color:var(--slate-700);">
+                  <option>男</option><option>女</option>
+                </select>
+              </div>
+            </div>
+            <div><div class="ui-label">出生日期 <span style="color:red">*</span></div><div class="ui-input">2008-06-15</div></div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <div class="ui-label">身份证号 <span style="color:red">*</span></div>
+            <div class="ui-input">输入18位身份证号码</div>
+          </div>
+          <div class="tip" style="margin:8px 0;">
+            <strong>智能识别：</strong>输入身份证号后，系统自动提取出生日期和性别，无需手动填写。
+          </div>
+          <div style="margin-bottom:16px;">
+            <div class="ui-label">证件照（可选）</div>
+            <div style="border:2px dashed var(--slate-200);border-radius:10px;padding:20px;text-align:center;color:var(--slate-500);font-size:12px;">
+              点击上传照片（JPG/PNG，≤2MB）
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;">
+            <div class="ui-btn ui-btn-outline" style="flex:1;">取消</div>
+            <div class="ui-btn ui-btn-blue" style="flex:1;">保存</div>
+          </div>
+        </div>
+      </div>
+      <div class="screenshot-caption">添加运动员表单</div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <h3>批量导入运动员</h3>
+    <p>支持通过 Excel 文件批量导入运动员。点击「批量导入」按钮，上传包含运动员信息的 Excel 文件（.xlsx / .xls）。</p>
+    <div class="warning">
+      <strong>注意事项：</strong>Excel 文件需包含「姓名」「性别」「出生日期」「身份证号」列，系统会自动校验数据格式并提示错误。
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ==================== SECTION 6: 在线报名 ==================== -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <div class="section-icon" style="background:#dbeafe;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="m9 14 2 2 4-4"/></svg>
+    </div>
+    <div>
+      <h2>六、在线报名</h2>
+      <p>为运动员选择竞赛项目和分组并提交报名</p>
+    </div>
+  </div>
+
+  <p>报名流程分为 <strong>4 个步骤</strong>：</p>
+
+  <ol class="steps">
+    <li>
+      <div class="step-title">选择运动员</div>
+      <div class="step-desc">从本队运动员列表中选择要报名的运动员（支持多选），也可在此快速新建运动员</div>
+    </li>
+    <li>
+      <div class="step-title">选择竞赛类别</div>
+      <div class="step-desc">选择竞赛类别（个人项目 / 集体项目），不同类别的报名方式不同</div>
+    </li>
+    <li>
+      <div class="step-title">选择竞赛项目和分组</div>
+      <div class="step-desc">在可用项目中勾选要参赛的项目，并为每个项目选择对应的分组（如年龄组、性别组）。系统会根据运动员出生日期自动筛选可报名的分组</div>
+    </li>
+    <li>
+      <div class="step-title">确认并提交</div>
+      <div class="step-desc">核对报名信息无误后点击「提交报名」，等待管理员审核</div>
+    </li>
+  </ol>
+
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <div class="screenshot-dot" style="background:#ef4444;"></div>
+      <div class="screenshot-dot" style="background:#eab308;"></div>
+      <div class="screenshot-dot" style="background:#22c55e;"></div>
+      <div class="screenshot-url">在线报名 — 选择项目</div>
+    </div>
+    <div class="screenshot-body">
+      <div style="margin-bottom:12px; display:flex;gap:8px;">
+        <div style="padding:6px 16px;border-radius:20px;font-size:12px;background:var(--blue);color:#fff;font-weight:600;">① 运动员 ✓</div>
+        <div style="padding:6px 16px;border-radius:20px;font-size:12px;background:var(--blue);color:#fff;font-weight:600;">② 类别 ✓</div>
+        <div style="padding:6px 16px;border-radius:20px;font-size:12px;background:var(--blue);color:#fff;font-weight:600;">③ 项目</div>
+        <div style="padding:6px 16px;border-radius:20px;font-size:12px;background:var(--slate-100);color:var(--slate-500);">④ 确认</div>
+      </div>
+      <div style="margin-bottom:8px; font-size:13px;color:var(--slate-500);">当前运动员：<strong style="color:var(--slate-800);">王小明</strong></div>
+      <div class="ui-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:28px;height:28px;background:#dbeafe;border-radius:6px;display:flex;align-items:center;justify-content:center;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-5"/></svg>
+            </div>
+            <span style="font-size:14px;font-weight:600;color:var(--slate-800);">30秒单摇跳</span>
+          </div>
+          <div style="font-size:12px;color:var(--slate-500);">个人速度</div>
+        </div>
+        <div style="margin-top:12px;padding-left:36px;">
+          <div class="ui-label">选择分组</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <div style="padding:6px 14px;border:2px solid var(--blue);border-radius:8px;font-size:12px;color:var(--blue);font-weight:600;background:#eff6ff;">12-15岁男子组</div>
+            <div style="padding:6px 14px;border:1px solid var(--slate-200);border-radius:8px;font-size:12px;color:var(--slate-500);">12-15岁女子组</div>
+            <div style="padding:6px 14px;border:1px solid var(--slate-200);border-radius:8px;font-size:12px;color:var(--slate-500);">9-11岁男子组</div>
+          </div>
+        </div>
+      </div>
+      <div class="ui-card" style="margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:28px;height:28px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;justify-content:center;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+            </div>
+            <span style="font-size:14px;font-weight:600;color:var(--slate-800);">3分钟单摇跳</span>
+          </div>
+          <div style="font-size:12px;color:var(--slate-500);">个人耐力</div>
+        </div>
+      </div>
+    </div>
+    <div class="screenshot-caption">报名第三步 — 为运动员选择竞赛项目和分组</div>
+  </div>
+
+  <div class="tip">
+    <strong>智能分组匹配：</strong>系统会根据运动员的出生日期和性别，自动过滤出可报名的分组（灰色显示的为不符合条件的分组）。
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ==================== SECTION 7: 我的报名 ==================== -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <div class="section-icon" style="background:#d1fae5;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+    </div>
+    <div>
+      <h2>七、我的报名</h2>
+      <p>查看已提交的报名记录及审核状态</p>
+    </div>
+  </div>
+
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <div class="screenshot-dot" style="background:#ef4444;"></div>
+      <div class="screenshot-dot" style="background:#eab308;"></div>
+      <div class="screenshot-dot" style="background:#22c55e;"></div>
+      <div class="screenshot-url">我的报名</div>
+    </div>
+    <div class="screenshot-body">
+      <table class="ui-table">
+        <thead>
+          <tr><th>竞赛项目</th><th>分组</th><th>运动员</th><th>状态</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="color:var(--slate-800);font-weight:600;">30秒单摇跳</td>
+            <td>12-15岁男子组</td>
+            <td>王小明</td>
+            <td><span class="ui-tag ui-tag-green">已确认</span></td>
+            <td><span style="color:var(--blue);cursor:pointer;font-size:12px;">修改</span> | <span style="color:#ef4444;cursor:pointer;font-size:12px;">删除</span></td>
+          </tr>
+          <tr>
+            <td style="color:var(--slate-800);font-weight:600;">3分钟单摇跳</td>
+            <td>12-15岁男子组</td>
+            <td>王小明</td>
+            <td><span class="ui-tag ui-tag-amber">审核中</span></td>
+            <td><span style="color:var(--blue);cursor:pointer;font-size:12px;">修改</span> | <span style="color:#ef4444;cursor:pointer;font-size:12px;">删除</span></td>
+          </tr>
+          <tr>
+            <td style="color:var(--slate-800);font-weight:600;">集体跳绳</td>
+            <td>团体赛</td>
+            <td>多人</td>
+            <td><span class="ui-tag ui-tag-red">已拒绝</span></td>
+            <td><span style="color:var(--blue);cursor:pointer;font-size:12px;">修改重提</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screenshot-caption">我的报名列表 — 查看审核状态，支持修改和删除</div>
+  </div>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h4>三种状态</h4>
+      <p><span class="ui-tag ui-tag-amber">审核中</span> 管理员尚未审核<br>
+      <span class="ui-tag ui-tag-green">已确认</span> 审核通过<br>
+      <span class="ui-tag ui-tag-red">已拒绝</span> 审核未通过，可修改后重新提交</p>
+    </div>
+    <div class="feature-card">
+      <h4>支持操作</h4>
+      <p>• 修改分组后重新提交<br>• 删除报名（仅审核中/已拒绝）<br>• 按赛事筛选查看</p>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ==================== SECTION 8: 管理端概览 ==================== -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fee2e2;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
+    </div>
+    <div>
+      <h2>八、管理端概览</h2>
+      <p>管理员登录后的系统结构</p>
+    </div>
+  </div>
+
+  <p>管理员从首页点击「后台管理系统」进入登录页。管理端包含以下功能模块：</p>
+
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <div class="screenshot-dot" style="background:#ef4444;"></div>
+      <div class="screenshot-dot" style="background:#eab308;"></div>
+      <div class="screenshot-dot" style="background:#22c55e;"></div>
+      <div class="screenshot-url">后台管理系统</div>
+    </div>
+    <div class="screenshot-body">
+      <div style="display:flex; gap:16px;">
+        <div class="ui-sidebar" style="min-height:300px;">
+          <div class="ui-sidebar-logo">
+            <div class="ui-sidebar-logo-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+            </div>
+            <div style="font-size:12px;">
+              <div style="font-weight:700;">赛事管理系统</div>
+            </div>
+          </div>
+          <div class="ui-sidebar-item active">📊 数据总览</div>
+          <div class="ui-sidebar-item">🎯 项目 & 分组</div>
+          <div class="ui-sidebar-item">📋 报名审核</div>
+          <div class="ui-sidebar-item">👥 注册账号及队伍管理</div>
+          <div class="ui-sidebar-item">📄 秩序册</div>
+          <div class="ui-sidebar-item">🛡️ 管理员账号</div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:15px;font-weight:700;color:var(--slate-800);margin-bottom:12px;">数据总览</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:16px;">
+            <div style="background:#fff;border:1px solid var(--slate-200);border-radius:10px;padding:14px;text-align:center;">
+              <div style="font-size:22px;font-weight:800;color:var(--blue);">156</div>
+              <div style="font-size:11px;color:var(--slate-500);">报名总数</div>
+            </div>
+            <div style="background:#fff;border:1px solid var(--slate-200);border-radius:10px;padding:14px;text-align:center;">
+              <div style="font-size:22px;font-weight:800;color:var(--green);">120</div>
+              <div style="font-size:11px;color:var(--slate-500);">已确认</div>
+            </div>
+            <div style="background:#fff;border:1px solid var(--slate-200);border-radius:10px;padding:14px;text-align:center;">
+              <div style="font-size:22px;font-weight:800;color:var(--amber);">36</div>
+              <div style="font-size:11px;color:var(--slate-500);">待审核</div>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div style="background:#fff;border:1px solid var(--slate-200);border-radius:10px;padding:14px;text-align:center;">
+              <div style="font-size:18px;font-weight:800;color:var(--slate-800);">8</div>
+              <div style="font-size:11px;color:var(--slate-500);">参赛队伍</div>
+            </div>
+            <div style="background:#fff;border:1px solid var(--slate-200);border-radius:10px;padding:14px;text-align:center;">
+              <div style="font-size:18px;font-weight:800;color:var(--slate-800);">24</div>
+              <div style="font-size:11px;color:var(--slate-500);">运动员</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="screenshot-caption">管理端首页 — 数据总览面板</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ==================== SECTION 9: 赛事管理 ==================== -->
+<div class="section" id="s9">
+  <div class="section-header">
+    <div class="section-icon" style="background:#ede9fe;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+    </div>
+    <div>
+      <h2>九、赛事与项目管理</h2>
+      <p>管理员创建赛事并设置竞赛项目和分组</p>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <h3>赛事管理</h3>
+    <p>点击「赛事管理」按钮可创建、编辑赛事。每个赛事包含以下信息：</p>
+    <table class="ui-table">
+      <thead><tr><th>字段</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td style="color:var(--slate-800);font-weight:600;">赛事名称</td><td>如"2026年全国跳绳锦标赛"</td></tr>
+        <tr><td style="color:var(--slate-800);font-weight:600;">比赛场馆</td><td>比赛举办地点</td></tr>
+        <tr><td style="color:var(--slate-800);font-weight:600;">比赛日期</td><td>开始日期和结束日期</td></tr>
+        <tr><td style="color:var(--slate-800);font-weight:600;">报名截止</td><td>报名通道关闭时间</td></tr>
+        <tr><td style="color:var(--slate-800);font-weight:600;">赛事状态</td><td>草稿 → 报名中 → 已截止 → 已结束</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="subsection">
+    <h3>竞赛项目与分组</h3>
+    <p>在「项目 & 分组」页面中设置竞赛项目和对应的分组：</p>
+    <div class="screenshot">
+      <div class="screenshot-bar">
+        <div class="screenshot-dot" style="background:#ef4444;"></div>
+        <div class="screenshot-dot" style="background:#eab308;"></div>
+        <div class="screenshot-dot" style="background:#22c55e;"></div>
+        <div class="screenshot-url">项目 & 分组</div>
+      </div>
+      <div class="screenshot-body">
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <div class="ui-btn ui-btn-blue" style="font-size:12px;padding:6px 14px;">+ 添加项目</div>
+          <div class="ui-btn ui-btn-outline" style="font-size:12px;padding:6px 14px;">📋 使用预设模板</div>
+          <div style="margin-left:auto;font-size:12px;color:var(--slate-500);align-self:center;">限报：个人 <strong>3</strong> 项 / 集体 <strong>2</strong> 项</div>
+        </div>
+        <div class="ui-card" style="padding:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-weight:600;color:var(--slate-800);font-size:14px;">🏃 30秒单摇跳</div>
+            <div style="display:flex;gap:4px;">
+              <span style="color:var(--blue);cursor:pointer;font-size:12px;">编辑</span>
+              <span style="color:#ef4444;cursor:pointer;font-size:12px;">删除</span>
+            </div>
+          </div>
+          <div style="margin-top:8px;padding-left:12px;border-left:2px solid var(--blue);">
+            <div style="font-size:12px;color:var(--slate-500);margin-bottom:4px;">分组设置：</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <span class="ui-tag ui-tag-blue">9-11岁男子组 (限20人)</span>
+              <span class="ui-tag ui-tag-blue">9-11岁女子组 (限20人)</span>
+              <span class="ui-tag ui-tag-blue">12-15岁男子组 (限25人)</span>
+              <span class="ui-tag ui-tag-blue">12-15岁女子组 (限25人)</span>
+            </div>
+          </div>
+        </div>
+        <div class="ui-card" style="padding:12px;margin-top:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-weight:600;color:var(--slate-800);font-size:14px;">👥 集体跳绳</div>
+            <div style="display:flex;gap:4px;">
+              <span style="color:var(--blue);cursor:pointer;font-size:12px;">编辑</span>
+              <span style="color:#ef4444;cursor:pointer;font-size:12px;">删除</span>
+            </div>
+          </div>
+          <div style="margin-top:8px;padding-left:12px;border-left:2px solid var(--blue);">
+            <span class="ui-tag ui-tag-blue">团体赛 (不限)</span>
+          </div>
+        </div>
+      </div>
+      <div class="screenshot-caption">项目管理页面 — 设置竞赛项目及每个项目的分组和限报人数</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ==================== SECTION 10: 报名审核 ==================== -->
+<div class="section" id="s10">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef9c3;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ca8a04" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+    </div>
+    <div>
+      <h2>十、报名审核</h2>
+      <p>管理员审核参赛队伍提交的报名信息</p>
+    </div>
+  </div>
+
+  <p>报名审核页面按队伍分组展示所有报名记录，管理员可以：</p>
+
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <div class="screenshot-dot" style="background:#ef4444;"></div>
+      <div class="screenshot-dot" style="background:#eab308;"></div>
+      <div class="screenshot-dot" style="background:#22c55e;"></div>
+      <div class="screenshot-url">报名审核</div>
+    </div>
+    <div class="screenshot-body">
+      <div style="margin-bottom:12px; display:flex; gap:8px;">
+        <div class="ui-btn ui-btn-blue" style="font-size:12px;padding:6px 14px;">✅ 批量确认选中</div>
+        <div class="ui-btn ui-btn-outline" style="font-size:12px;padding:6px 14px;">❌ 批量拒绝</div>
+        <div style="flex:1;"></div>
+        <div style="font-size:12px;color:var(--slate-500);align-self:center;">已选 3 条</div>
+      </div>
+      <div class="ui-card" style="border-left:3px solid var(--blue);">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <span style="font-weight:700;color:var(--slate-800);">御绳道跳绳1队</span>
+            <span class="ui-tag ui-tag-amber" style="margin-left:8px;">5条报名</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <span class="ui-btn ui-btn-green" style="font-size:11px;padding:4px 12px;">全部确认</span>
+            <span class="ui-btn ui-btn-outline" style="font-size:11px;padding:4px 12px;color:#ef4444;border-color:#fecaca;">全部拒绝</span>
+          </div>
+        </div>
+        <table class="ui-table" style="margin-top:8px;">
+          <thead><tr><th style="width:20px;"><input type="checkbox" checked></th><th>项目</th><th>分组</th><th>运动员</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><input type="checkbox" checked></td>
+              <td style="color:var(--slate-800);">30秒单摇跳</td>
+              <td>12-15岁男子组</td>
+              <td>王小明</td>
+              <td><span class="ui-tag ui-tag-amber">审核中</span></td>
+              <td><span style="color:var(--blue);cursor:pointer;font-size:12px;">详情</span></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" checked></td>
+              <td style="color:var(--slate-800);">3分钟单摇跳</td>
+              <td>12-15岁男子组</td>
+              <td>王小明</td>
+              <td><span class="ui-tag ui-tag-amber">审核中</span></td>
+              <td><span style="color:var(--blue);cursor:pointer;font-size:12px;">详情</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="screenshot-caption">报名审核页面 — 按队伍分组审核，支持批量操作</div>
+  </div>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h4>单条审核</h4>
+      <p>点击「详情」查看报名详细信息，然后逐条确认或拒绝，拒绝时需填写原因</p>
+    </div>
+    <div class="feature-card">
+      <h4>批量操作</h4>
+      <p>勾选多条记录后一键确认或拒绝，也可按队伍一键全部确认/拒绝</p>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ==================== SECTION 11: 秩序册 ==================== -->
+<div class="section" id="s11">
+  <div class="section-header">
+    <div class="section-icon" style="background:#e0e7ff;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+    </div>
+    <div>
+      <h2>十一、秩序册</h2>
+      <p>自动生成出场顺序表并导出</p>
+    </div>
+  </div>
+
+  <p>秩序册页面可以自动生成出场编排，并导出为 Excel 或 PDF 格式。</p>
+
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <div class="screenshot-dot" style="background:#ef4444;"></div>
+      <div class="screenshot-dot" style="background:#eab308;"></div>
+      <div class="screenshot-dot" style="background:#22c55e;"></div>
+      <div class="screenshot-url">秩序册</div>
+    </div>
+    <div class="screenshot-body">
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <div class="ui-btn ui-btn-blue" style="font-size:12px;padding:6px 14px;">⚡ 生成出场顺序</div>
+        <div class="ui-btn ui-btn-outline" style="font-size:12px;padding:6px 14px;">📊 导出Excel</div>
+        <div class="ui-btn ui-btn-outline" style="font-size:12px;padding:6px 14px;">📄 导出PDF</div>
+        <div style="margin-left:auto;font-size:12px;color:var(--slate-500);align-self:center;">
+          场地数：<strong>8</strong>
+        </div>
+      </div>
+      <table class="ui-table">
+        <thead><tr><th>场次</th><th>场地</th><th>项目</th><th>分组</th><th>单位（队伍）</th><th>运动员</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>1</td><td>30秒单摇跳</td><td>12-15岁男子组</td><td style="color:var(--slate-800);font-weight:600;">御绳道跳绳1队</td><td>王小明</td></tr>
+          <tr><td>1</td><td>2</td><td>30秒单摇跳</td><td>12-15岁男子组</td><td style="color:var(--slate-800);font-weight:600;">飞跃跳绳队</td><td>李四</td></tr>
+          <tr><td>1</td><td>3</td><td>30秒单摇跳</td><td>12-15岁女子组</td><td style="color:var(--slate-800);font-weight:600;">御绳道跳绳1队</td><td>赵小红</td></tr>
+          <tr><td>1</td><td>4</td><td>3分钟单摇跳</td><td>12-15岁男子组</td><td style="color:var(--slate-800);font-weight:600;">闪电跳绳队</td><td>周杰</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screenshot-caption">秩序册 — 显示出场顺序，支持导出 Excel 和 PDF</div>
+  </div>
+
+  <div class="tip">
+    <strong>提示：</strong>每次修改报名数据后，需点击「生成出场顺序」重新生成。秩序册中的"单位"列显示报名队伍名称。
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ==================== SECTION 12: 账号管理 ==================== -->
+<div class="section" id="s12">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fecdd3;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e11d48" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+    </div>
+    <div>
+      <h2>十二、注册账号及队伍管理</h2>
+      <p>管理员管理所有参赛账号和队伍信息</p>
+    </div>
+  </div>
+
+  <p>在「注册账号及队伍管理」页面，管理员可以查看和管理所有注册账号及其关联的队伍数据。</p>
+
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <div class="screenshot-dot" style="background:#ef4444;"></div>
+      <div class="screenshot-dot" style="background:#eab308;"></div>
+      <div class="screenshot-dot" style="background:#22c55e;"></div>
+      <div class="screenshot-url">注册账号及队伍管理</div>
+    </div>
+    <div class="screenshot-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+        <div style="background:#fff;border:1px solid var(--slate-200);border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:18px;font-weight:800;color:var(--slate-800);">5</div>
+          <div style="font-size:11px;color:var(--slate-500);">注册账号</div>
+        </div>
+        <div style="background:#fff;border:1px solid var(--slate-200);border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:18px;font-weight:800;color:var(--slate-800);">8</div>
+          <div style="font-size:11px;color:var(--slate-500);">参赛队伍</div>
+        </div>
+        <div style="background:#fff;border:1px solid var(--slate-200);border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:18px;font-weight:800;color:var(--slate-800);">24</div>
+          <div style="font-size:11px;color:var(--slate-500);">运动员</div>
+        </div>
+        <div style="background:#fff;border:1px solid var(--slate-200);border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:18px;font-weight:800;color:var(--slate-800);">6</div>
+          <div style="font-size:11px;color:var(--slate-500);">教练/领队</div>
+        </div>
+      </div>
+      <div class="ui-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <span style="font-weight:700;color:var(--slate-800);">御绳道跳绳俱乐部</span>
+            <span style="font-size:11px;color:var(--slate-500);margin-left:8px;">用户：yushengdao</span>
+          </div>
+          <div style="display:flex;gap:4px;">
+            <span style="font-size:12px;color:var(--blue);cursor:pointer;">编辑</span>
+            <span style="font-size:12px;color:#ef4444;cursor:pointer;">注销</span>
+          </div>
+        </div>
+        <div style="margin-top:8px;font-size:12px;color:var(--slate-500);">
+          📞 138****1234 &nbsp; 📍 广东省深圳市 &nbsp;
+          <span class="ui-tag ui-tag-blue" style="margin-left:4px;">2队</span>
+        </div>
+        <div style="margin-top:8px;padding-left:12px;border-left:2px solid var(--blue);">
+          <div style="font-size:12px;font-weight:600;color:var(--slate-800);margin-bottom:6px;">队伍列表 ▼</div>
+          <div style="font-size:12px;color:var(--slate-500);padding:4px 0;">
+            🏷️ 御绳道跳绳1队 — 8名运动员, 2名教练
+          </div>
+          <div style="font-size:12px;color:var(--slate-500);padding:4px 0;">
+            🏷️ 御绳道跳绳2队 — 6名运动员, 1名教练
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="screenshot-caption">账号及队伍管理 — 查看账号信息，展开查看关联队伍</div>
+  </div>
+
+  <div class="subsection">
+    <h3>账号操作</h3>
+    <table class="ui-table">
+      <thead><tr><th>操作</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td style="color:var(--slate-800);font-weight:600;">编辑</td><td>修改账号的联系人、电话、邮箱、省市等信息</td></tr>
+        <tr><td style="color:var(--slate-800);font-weight:600;">注销</td><td>注销账号会<strong>级联删除</strong>该账号下所有队伍、人员、报名数据，需输入"确认注销"才能执行</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="warning">
+    <strong>重要提醒：</strong>注销操作不可逆！注销账号后，该账号及其关联的所有队伍、运动员、教练、领队、报名记录将全部被清除，请谨慎操作。
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ==================== 附录 ==================== -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:#f1f5f9;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+    </div>
+    <div>
+      <h2>附录：常见问题</h2>
+      <p>使用过程中遇到的常见问题解答</p>
+    </div>
+  </div>
+
+  <div class="ui-card" style="margin-bottom:12px;">
+    <div style="font-weight:700;color:var(--slate-800);font-size:14px;">Q：忘记密码怎么办？</div>
+    <div style="font-size:13px;color:var(--slate-500);margin-top:6px;">A：目前暂不支持自助找回密码，请联系管理员重置密码。</div>
+  </div>
+  <div class="ui-card" style="margin-bottom:12px;">
+    <div style="font-weight:700;color:var(--slate-800);font-size:14px;">Q：同一个账号可以创建多支队伍吗？</div>
+    <div style="font-size:13px;color:var(--slate-500);margin-top:6px;">A：可以。在同一赛事下，一个账号可以创建多支队伍（如"1队"、"2队"），每支队伍的人员和报名数据完全独立。</div>
+  </div>
+  <div class="ui-card" style="margin-bottom:12px;">
+    <div style="font-weight:700;color:var(--slate-800);font-size:14px;">Q：报名被拒绝了怎么办？</div>
+    <div style="font-size:13px;color:var(--slate-500);margin-top:6px;">A：在「我的报名」中找到被拒绝的记录，查看拒绝原因，修改分组或信息后重新提交即可。</div>
+  </div>
+  <div class="ui-card" style="margin-bottom:12px;">
+    <div style="font-weight:700;color:var(--slate-800);font-size:14px;">Q：一个运动员可以报名多个项目吗？</div>
+    <div style="font-size:13px;color:var(--slate-500);margin-top:6px;">A：可以，但有数量限制。管理员可设置个人项目和集体项目的最大报名数量。超出限制时系统会提示。</div>
+  </div>
+  <div class="ui-card" style="margin-bottom:12px;">
+    <div style="font-weight:700;color:var(--slate-800);font-size:14px;">Q：支持哪些浏览器？</div>
+    <div style="font-size:13px;color:var(--slate-500);margin-top:6px;">A：推荐使用 Chrome、Edge、Firefox 等现代浏览器的最新版本。手机端和电脑端均可正常使用。</div>
+  </div>
+</div>
+
+</div>
+
+<!-- ==================== FOOTER ==================== -->
+<div class="footer">
+  <p>跳绳赛事报名系统 · 用户使用说明 v2.0</p>
+  <p style="margin-top:4px;">如有问题请联系赛事管理员</p>
+</div>
+
+</body>
+</html>

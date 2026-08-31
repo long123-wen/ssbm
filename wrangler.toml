@@ -1,0 +1,21 @@
+name = "rope-jump-registration"
+pages_build_output_dir = "./dist"
+
+# Dedicated database for this application only. Existing Cloudflare D1 databases
+# are intentionally not referenced or modified.
+[[d1_databases]]
+binding = "REGISTRATION_DB"
+database_name = "rope-jump-registration-d1-20260814"
+database_id = "2b3c1a09-f3c5-4950-9b6a-10ee858ba5aa"
+migrations_dir = "migrations"
+
+# Dedicated image storage for this application only. No existing R2 bucket is used.
+[[r2_buckets]]
+binding = "REGISTRATION_MEDIA"
+bucket_name = "rope-jump-registration-media-20260815"
+
+# Dedicated KV namespace for login rate limiting (sliding-window counters).
+# Created 2026-08-31, isolated from other projects on purpose.
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "87405efd93c6418a98e7799c13d7cb68"
