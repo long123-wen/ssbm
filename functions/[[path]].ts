@@ -261,10 +261,15 @@ function ensureOriginAllowed(request: Request, env: Env): void {
 }
 
 export const onRequest: PagesFunction<Env> = async context => {
-  const { request, env } = context;
+  const { request, env, next } = context;
   const id = requestId(request);
   const segments = pathSegments(request);
   const isDataContract = segments[0] === 'api' && segments[1] === 'data';
+  // 兜底：根路径与非 API/非 storage 路径交给 Pages 静态层（index.html / admin.html / club.html 等 SPA 入口）
+  if (segments[0] !== 'api' && segments[0] !== 'storage') {
+    if (next) return next();
+    throw new HttpError(404, 'Not found', 'NOT_FOUND');
+  }
   try {
     if (!env.REGISTRATION_DB) {
       throw new HttpError(503, 'Required D1 binding is missing', 'BINDING_MISSING');
@@ -279,7 +284,6 @@ export const onRequest: PagesFunction<Env> = async context => {
       const storageSegments = ['', ...segments]; // 对齐 segments[1]='storage' 的下标期望
       return await storage(request, env, id, storageSegments, context.waitUntil.bind(context));
     }
-    if (segments[0] !== 'api') throw new HttpError(404, 'API route not found', 'NOT_FOUND');
     if (segments[1] === 'data' && segments.length === 4 && segments[3] === 'query') {
       return await dataQuery(request, env, id, segments[2], context.waitUntil.bind(context));
     }
