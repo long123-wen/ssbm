@@ -75,13 +75,22 @@ echo "[autopush] commit message: $MSG"
 git commit -m "$MSG" --no-verify || { echo "[autopush] commit failed"; exit 1; }
 
 # ---------- 6. Push ----------
+# Strategy: just try `git push`. If the remote has commits we don't have
+# (e.g. a previous mega-commit is still the tip), retry with --force-with-lease.
+# We accept force-push because this is a single-main linear workflow where
+# "latest version wins" is the user-stated preference.
 echo "[autopush] pushing to origin/main ..."
 if git push origin main 2>&1; then
   echo "[autopush] OK, remote synced"
   exit 0
 fi
+echo "[autopush] fast-forward push rejected. Retrying with --force-with-lease ..."
+if git push --force-with-lease origin main 2>&1; then
+  echo "[autopush] OK, force-pushed to remote"
+  exit 0
+fi
 PUSH_RC=$?
 echo "[autopush] push failed (rc=$PUSH_RC). Likely sandbox blocks github.com:443."
 echo "[autopush] Local commit saved as $(git rev-parse --short HEAD)."
-echo "[autopush] NEXT: open a local terminal in $REPO_DIR and run 'git push origin main' to sync."
+echo "[autopush] NEXT: open a local terminal in $REPO_DIR and run 'git push --force-with-lease origin main' to sync."
 exit 0
