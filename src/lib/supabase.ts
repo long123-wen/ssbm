@@ -1,3 +1,13 @@
+import { lookupErrorMessage } from './errorMessages';
+
+export type ApiError = {
+  message: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+  status?: number;
+};
+
 type QueryAction = 'select' | 'insert' | 'update' | 'delete';
 type FilterOperator = 'eq' | 'neq' | 'in' | 'not_eq' | 'ilike';
 type SingleMode = 'single' | 'maybeSingle';
@@ -23,14 +33,6 @@ type QueryRequest = {
   payload?: Record<string, unknown> | Record<string, unknown>[];
   count?: 'exact';
   head?: boolean;
-};
-
-export type ApiError = {
-  message: string;
-  code?: string;
-  details?: string;
-  hint?: string;
-  status?: number;
 };
 
 export type ApiResult<T = unknown> = {
@@ -70,27 +72,29 @@ function encodePath(path: string): string {
 }
 
 function normalizeError(value: unknown, status?: number, fallback = '请求失败'): ApiError {
-  if (typeof value === 'string' && value.trim()) {
-    return { message: value, status };
-  }
+  let rawMessage = fallback;
+  let code: string | undefined;
+  let details: string | undefined;
+  let hint: string | undefined;
 
-  if (value && typeof value === 'object') {
+  if (typeof value === 'string' && value.trim()) {
+    rawMessage = value;
+  } else if (value && typeof value === 'object') {
     const source = value as Record<string, unknown>;
     const nested = source.error && typeof source.error === 'object'
       ? source.error as Record<string, unknown>
       : source;
-    const message = nested.message ?? nested.detail ?? source.message ?? source.detail
+    const candidate = nested.message ?? nested.detail ?? source.message ?? source.detail
       ?? (typeof source.error === 'string' ? source.error : undefined);
-    return {
-      message: typeof message === 'string' && message.trim() ? message : fallback,
-      code: typeof nested.code === 'string' ? nested.code : undefined,
-      details: typeof nested.details === 'string' ? nested.details : undefined,
-      hint: typeof nested.hint === 'string' ? nested.hint : undefined,
-      status,
-    };
+    if (typeof candidate === 'string' && candidate.trim()) rawMessage = candidate;
+    if (typeof nested.code === 'string') code = nested.code;
+    if (typeof nested.details === 'string') details = nested.details;
+    if (typeof nested.hint === 'string') hint = nested.hint;
   }
 
-  return { message: fallback, status };
+  // 按后端 code 查字典，把英文 message 翻译成中文
+  const message = lookupErrorMessage(code, rawMessage);
+  return { message, code, details, hint, status };
 }
 
 function timeoutError(): ApiError {
@@ -98,7 +102,7 @@ function timeoutError(): ApiError {
 }
 
 function networkError(error: unknown): ApiError {
-  const message = error instanceof Error && error.message ? error.message : '无法连接服务器，请检查网络连接';
+  const message = error instanceof Error && error.message ? error.message : '无法连接服务器，请检查网络';
   return { message, code: 'NETWORK_ERROR' };
 }
 

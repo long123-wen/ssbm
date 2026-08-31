@@ -81,13 +81,13 @@ export function errorResponse(request: Request, env: Env, id: string, error: unk
     : !(error instanceof HttpError) && /GROUP_CAPACITY_EXCEEDED/i.test(rawMessage)
     ? new HttpError(409, '该组别报名人数已满', 'GROUP_CAPACITY_EXCEEDED')
     : !(error instanceof HttpError) && /DUPLICATE_ENTRY/i.test(rawMessage)
-      ? new HttpError(409, 'A duplicate event entry already exists', 'DUPLICATE_ENTRY')
+      ? new HttpError(409, '已存在相同的报名记录', 'DUPLICATE_ENTRY')
     : !(error instanceof HttpError) && /UNIQUE constraint failed/i.test(rawMessage)
-      ? new HttpError(409, 'A record with the same unique value already exists', 'UNIQUE_VIOLATION')
+      ? new HttpError(409, '已存在使用相同唯一值的记录', 'UNIQUE_VIOLATION')
       : !(error instanceof HttpError) && /FOREIGN KEY constraint failed/i.test(rawMessage)
-        ? new HttpError(409, 'A referenced record does not exist or is still in use', 'FOREIGN_KEY_VIOLATION')
+        ? new HttpError(409, '所引用的记录不存在或仍被使用', 'FOREIGN_KEY_VIOLATION')
         : !(error instanceof HttpError) && /CHECK constraint failed|NOT NULL constraint failed/i.test(rawMessage)
-          ? new HttpError(400, 'The submitted data violates a database constraint', 'CONSTRAINT_VIOLATION')
+          ? new HttpError(400, '提交的数据违反数据库约束', 'CONSTRAINT_VIOLATION')
           : error;
   const known = databaseError instanceof HttpError;
   const status = known ? databaseError.status : 500;
@@ -121,7 +121,7 @@ export function errorResponse(request: Request, env: Env, id: string, error: unk
 export function corsPreflight(request: Request, env: Env, id: string): Response {
   const origin = request.headers.get('Origin');
   if (origin && !allowedOrigin(request, env)) {
-    return errorResponse(request, env, id, new HttpError(403, 'Origin is not allowed', 'CORS_ORIGIN_DENIED'));
+    return errorResponse(request, env, id, new HttpError(403, '请求来源不被允许', 'CORS_ORIGIN_DENIED'));
   }
   return new Response(null, { status: 204, headers: responseHeaders(request, env, id) });
 }
@@ -129,21 +129,21 @@ export function corsPreflight(request: Request, env: Env, id: string): Response 
 export async function readJson<T>(request: Request, maxBytes = 256 * 1024): Promise<T> {
   const contentType = request.headers.get('Content-Type') || '';
   if (!contentType.toLowerCase().includes('application/json')) {
-    throw new HttpError(415, 'Content-Type must be application/json', 'UNSUPPORTED_MEDIA_TYPE');
+    throw new HttpError(415, '请求必须为 application/json 格式', 'UNSUPPORTED_MEDIA_TYPE');
   }
   const length = Number(request.headers.get('Content-Length') || '0');
-  if (length > maxBytes) throw new HttpError(413, 'Request body is too large', 'PAYLOAD_TOO_LARGE');
+  if (length > maxBytes) throw new HttpError(413, '请求内容超过大小限制', 'PAYLOAD_TOO_LARGE');
   const text = await request.text();
   if (new TextEncoder().encode(text).byteLength > maxBytes) {
-    throw new HttpError(413, 'Request body is too large', 'PAYLOAD_TOO_LARGE');
+    throw new HttpError(413, '请求内容超过大小限制', 'PAYLOAD_TOO_LARGE');
   }
   try {
     return JSON.parse(text) as T;
   } catch {
-    throw new HttpError(400, 'Malformed JSON body', 'INVALID_JSON');
+    throw new HttpError(400, '请求体不是合法的 JSON', 'INVALID_JSON');
   }
 }
 
 export function assertMethod(request: Request, method: string): void {
-  if (request.method !== method) throw new HttpError(405, `Method ${request.method} is not allowed`, 'METHOD_NOT_ALLOWED');
+  if (request.method !== method) throw new HttpError(405, `不允许使用 ${request.method} 方法`, 'METHOD_NOT_ALLOWED');
 }
