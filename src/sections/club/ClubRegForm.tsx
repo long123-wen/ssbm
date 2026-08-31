@@ -739,234 +739,437 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
         </div>
       ) : (
         <>
-          {/* 赛事选择 */}
-          <div className="mb-4 sm:mb-5 lg:flex lg:items-end lg:gap-5">
-            <div className="flex-1 lg:max-w-xl">
-              <Label className="text-slate-600 text-sm mb-1.5 block">选择赛事</Label>
-              <Select value={selCompId || undefined} onValueChange={(v) => { if (submittedLocked && !adminEditUnlocked) return; setSelCompId(v); setTempRegs([]); }} disabled={submittedLocked && !adminEditUnlocked}>
-                <SelectTrigger className="w-full bg-white h-11 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-              <SelectContent>
-                {competitions.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="hidden lg:flex items-center gap-2 text-xs text-slate-500 bg-white border border-slate-200 rounded-xl px-4 h-11">
-              <Trophy className="w-4 h-4 text-emerald-500" />
-              <span>报名信息实时保存，提交前可随时调整</span>
-            </div>
-          </div>
+          <RegFormStep1Team
+            competitions={competitions}
+            selCompId={selCompId}
+            onChangeSelCompId={(v) => { if (submittedLocked && !adminEditUnlocked) return; setSelCompId(v); setTempRegs([]); }}
+            disabled={submittedLocked && !adminEditUnlocked}
+            currentComp={currentComp}
+            deadlineInfo={deadlineInfo}
+            deadlineLabel={competitions.find(c => c.id === selCompId)?.registrationDeadline || ''}
+          />
 
-          {/* 限报提示 */}
-          {selCompId && currentComp && (currentComp.maxIndividualEvents || currentComp.maxTeamEvents) && (
-            <div className="mb-4 rounded-xl px-4 py-2.5 flex items-center gap-2 text-sm bg-purple-50 border border-purple-200 text-purple-700">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span className="font-medium">限报规则：</span>
-              <span>
-                {currentComp.maxIndividualEvents && currentComp.maxIndividualEvents > 0 ? `个人项目每人最多报${currentComp.maxIndividualEvents}项` : ''}
-                {currentComp.maxIndividualEvents && currentComp.maxTeamEvents ? '，' : ''}
-                {currentComp.maxTeamEvents && currentComp.maxTeamEvents > 0 ? `集体项目每人最多报${currentComp.maxTeamEvents}项` : ''}
-              </span>
-            </div>
-          )}
-
-          {/* 报名截止倒计时 */}
-          {selCompId && deadlineInfo && (
-            <div className={`mb-4 rounded-xl px-4 py-2.5 flex items-center gap-2 text-sm ${
-              deadlineInfo.expired
-                ? 'bg-red-50 border border-red-200 text-red-700'
-                : deadlineInfo.level === 'urgent'
-                  ? 'bg-red-50 border border-red-200 text-red-600'
-                  : deadlineInfo.level === 'warning'
-                    ? 'bg-amber-50 border border-amber-200 text-amber-700'
-                    : 'bg-blue-50 border border-blue-200 text-blue-700'
-            }`}>
-              <Timer className="w-4 h-4 shrink-0" />
-              <span className="font-medium">{deadlineInfo.text}</span>
-              {!deadlineInfo.expired && (
-                <span className="ml-auto text-xs opacity-70">
-                  截止日：{competitions.find(c => c.id === selCompId)?.registrationDeadline}
-                </span>
-              )}
-            </div>
-          )}
-
-          {events.length === 0 ? (
-            <div className="text-center py-16 text-slate-400 bg-white rounded-xl border border-dashed">
-              该赛事暂未配置项目，请联系管理员
-            </div>
-          ) : (
-            <>
-              {/* 步骤进度条 */}
           <Card className="bg-white border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden">
             <CardContent className="p-4 sm:p-5 lg:p-6">
-
               {/* 参考流程：项目/组别列表 */}
               {currentStep === 'catalog' && (
-                <div className={submittedLocked && !adminEditUnlocked ? 'pointer-events-none select-none opacity-60' : ''}>
-                  <div className="mb-4">
-                    <h3 className="font-semibold text-slate-800">选择报名项目</h3>
-                    <p className="text-xs text-slate-500 mt-1">先选择项目和组别，再添加参赛队员</p>
-                  </div>
-                  <div className="rounded-xl bg-slate-50/80 border border-slate-100 p-3 mb-5">
-                    <div className="flex items-center justify-between gap-3 mb-2">
-                      <span className="text-xs font-medium text-slate-500">项目分类</span>
-                      <span className="text-xs text-slate-400">{referenceEvents.length} 个项目</span>
-                    </div>
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                      {['全部', ...categories].map(cat => (
-                        <button key={cat} onClick={() => setReferenceCategory(cat)} className={`shrink-0 px-4 py-1.5 rounded-full text-sm border transition-colors ${referenceCategory === cat ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400'}`}>
-                          {cat}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-200/70">
-                      <span className="text-xs font-medium text-slate-500 mr-1">项目类型</span>
-                      {(['全部', '个人', '集体'] as const).map(type => (
-                        <button key={type} onClick={() => setReferenceType(type)} className={`px-3 py-1 rounded-full text-xs border transition-colors ${referenceType === type ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-600 border-slate-200'}`}>
-                          {type}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
-                    {referenceEvents.map(ev => {
-                      const evGroups = groupsMap[ev.id] || [];
-                      const filled = referenceFilledAthletes(ev.id);
-                      const allFull = isEventFull(ev.id);
-                      return (
-                        <div key={ev.id} className="group rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-md hover:border-emerald-200 transition-all">
-                          <div className="p-4 lg:p-5">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="min-w-0 flex-1">
-                                <h4 className="font-semibold text-slate-800 text-[15px] lg:text-base truncate">{ev.name}</h4>
-                                <div className="flex flex-wrap gap-1.5 mt-2">
-                                  <Badge className="bg-amber-100 text-amber-700 border-amber-200">可报组别</Badge>
-                                  <span className="text-xs text-slate-500 py-1">{ev.isIndividual === false ? `每队最多 ${ev.maxAthletes} 人` : '个人项目'}</span>
-                                </div>
-                                <p className="text-xs text-slate-500 mt-2">已填：{filled} 项</p>
-                              </div>
-                              <Button onClick={() => openReferenceEvent(ev.id)} disabled={allFull} className="shrink-0 bg-emerald-400 hover:bg-emerald-500 text-white rounded-full px-5">
-                                {allFull ? '已满' : '填报'}
-                              </Button>
-                            </div>
-                            <div className="mt-3 pt-3 border-t border-slate-100 text-sm text-slate-600 leading-relaxed line-clamp-2">可报名组别：{evGroups.length ? evGroups.map(g => g.name).join('、') : '暂未配置'}</div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {referenceEvents.length === 0 && <div className="lg:col-span-2 py-12 text-center text-slate-400">暂无符合条件的报名项目</div>}
-                  </div>
-                </div>
+                <RegFormStep2Events
+                  referenceCategory={referenceCategory}
+                  referenceType={referenceType}
+                  onCategoryChange={setReferenceCategory}
+                  onTypeChange={setReferenceType}
+                  categories={categories}
+                  events={referenceEvents}
+                  filledByEvent={tempRegs}
+                  groupsMap={groupsMap}
+                  isEventFull={isEventFull}
+                  onPickEvent={openReferenceEvent}
+                  disabled={submittedLocked && !adminEditUnlocked}
+                />
               )}
 
               {/* 单个项目填报完成确认页 */}
               {currentStep === 'completed' && completedEvent && completedGroup && (
-                <div>
-                  <div className="mb-5">
-                    <h3 className="font-semibold text-slate-800">{completedEvent.name}</h3>
-                    <p className="text-xs text-slate-500 mt-1">可报组别：{(groupsMap[completedEvent.id] || []).map(group => group.name).join('、')}</p>
-                    <p className="text-xs text-slate-500 mt-1">性别：{completedGroup.gender || '不限'}</p>
-                  </div>
-                  <div className="rounded-xl border border-amber-100 bg-amber-50/70 px-4 py-3 mb-4 text-sm text-slate-700">
-                    <span className="font-medium">报名规则：</span> 该组别限报 {limitOf('group', completedGroup.id) ?? '不限'}
-                    {limitOf('group', completedGroup.id) !== null && ' 人'}
-                  </div>
-                  <div className="rounded-xl bg-slate-50 p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="w-1 h-5 rounded-full bg-emerald-400" />
-                      <h4 className="font-semibold text-slate-800">已填报</h4>
-                    </div>
-                    {completedRegs.map((reg, index) => (
-                      <div key={`${reg.eventId}-${reg.groupId}-${index}`} className="rounded-xl bg-white border border-slate-100 p-4">
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          <Badge variant="outline" className="border-slate-200 text-slate-600">{reg.groupName}</Badge>
-                          <Badge variant="outline" className="border-emerald-200 text-emerald-600">{completedEvent.isIndividual === false ? '集体' : '个人'}</Badge>
-                        </div>
-                        <div className="space-y-2">
-                          {reg.athletes.map(athlete => (
-                            <div key={athlete.athleteId} className="flex items-center gap-2 text-sm text-slate-700">
-                              <span className="w-7 h-7 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-medium">{athlete.name.slice(0, 1)}</span>
-                              {athlete.name}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-5 flex gap-3">
-                    <Button variant="outline" onClick={saveAndReturnToCatalog} className="flex-1">保存返回</Button>
-                    <Button onClick={continueCurrentEvent} className="flex-1 bg-emerald-400 hover:bg-emerald-500 text-white">添加报名项</Button>
-                  </div>
-                </div>
+                <RegFormStep4Review
+                  event={completedEvent}
+                  group={completedGroup}
+                  groupsMap={groupsMap}
+                  regs={completedRegs}
+                  groupLimit={limitOf('group', completedGroup.id)}
+                  onContinue={continueCurrentEvent}
+                  onSaveReturn={saveAndReturnToCatalog}
+                />
               )}
 
               {/* 参考流程：选择组别和队员 */}
               {currentStep === 'picker' && referenceEvent && (
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div><h3 className="font-semibold text-slate-800">选择报名组别</h3><p className="text-xs text-slate-500 mt-1">{referenceEvent.name}</p></div>
-                    <button onClick={resetReferenceFlow} className="text-slate-400 hover:text-slate-700">×</button>
-                  </div>
-                  <div className="mb-5">
-                    <div className="text-sm font-medium text-slate-700 mb-2">报名组别</div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {referenceAllGroups.map(g => (
-                        <button key={g.id} disabled={isGroupFull(g)} onClick={() => setReferenceGroupId(g.id)} className={`px-3 py-2 rounded-full border text-sm ${referenceGroupId === g.id ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : isGroupFull(g) ? 'opacity-40 bg-slate-100' : 'border-slate-300 bg-white text-slate-700'}`}>
-                          {g.name}
-                        </button>
-                      ))}
-                      {referenceAllGroups.length === 0 && (
-                        <p className="col-span-full text-xs text-amber-600">该项目暂未配置报名组别</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-sm font-medium text-slate-700 mb-2">选择报名队员（{referenceAthleteIds.length}/{referenceMaxAthletes}）</div>
-                  {!referenceSelectedGroup ? (
-                    <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 px-4 py-5 text-center text-sm text-amber-700">
-                      请先选择报名组别，系统将自动筛选符合该组别的运动员
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-2 mb-3">
-                        <button onClick={() => setReferenceAthleteIds([])} className={`px-4 py-1.5 rounded-full text-xs border ${referenceAthleteIds.length === 0 ? 'bg-slate-900 text-white' : 'bg-white border-slate-300'}`}>清空选择</button>
-                        <span className="text-xs text-slate-400">符合条件 {referenceEligibleAthletes.length} 人 · {club.clubName}</span>
-                      </div>
-                      <div className="space-y-2 max-h-[48vh] overflow-y-auto">
-                        {referenceEligibleAthletes.map(a => {
-                          const checked = referenceAthleteIds.includes(a.id);
-                          const quotaReached = !checked && isAthleteQuotaReached(a.id);
-                          const quotaText = referenceEvent?.isIndividual !== false
-                            ? `个人项目已报满${currentComp?.maxIndividualEvents}项`
-                            : `集体项目已报满${currentComp?.maxTeamEvents}项`;
-                          return <button key={a.id} type="button" disabled={quotaReached} onClick={() => toggleReferenceAthlete(a.id)} className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${checked ? 'border-emerald-400 bg-emerald-50' : quotaReached ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed' : 'border-slate-200 bg-white'}`}>
-                            <span className={`w-5 h-5 rounded border flex items-center justify-center ${checked ? 'bg-emerald-500 border-emerald-500 text-white' : quotaReached ? 'border-slate-200 bg-slate-100' : 'border-slate-300'}`}>{checked ? '✓' : ''}</span>
-                            {a.avatarUrl ? <img src={a.avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover" /> : <span className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-sm text-slate-500">{a.name[0]}</span>}
-                            <span className={`font-medium ${quotaReached ? 'text-slate-400' : 'text-slate-800'}`}>{a.name}</span><span className="text-xs text-slate-400">{a.gender === 'male' ? '男' : '女'}</span>
-                            {quotaReached && <span className="ml-auto text-[11px] text-slate-400 whitespace-nowrap">{quotaText}</span>}
-                          </button>;
-                        })}
-                        {referenceEligibleAthletes.length === 0 && <p className="py-6 text-center text-sm text-amber-600">队伍中没有符合该组别要求的运动员</p>}
-                      </div>
-                    </>
-                  )}
-                  <div className="mt-5 flex gap-3"><Button variant="outline" onClick={resetReferenceFlow} className="flex-1">返回</Button><Button onClick={confirmReferenceAdd} className="flex-1 bg-emerald-400 hover:bg-emerald-500 text-white">确认添加</Button></div>
-                </div>
+                <RegFormStep3Athletes
+                  event={referenceEvent}
+                  allGroups={referenceAllGroups}
+                  selectedGroupId={referenceGroupId}
+                  onSelectGroup={setReferenceGroupId}
+                  isGroupFull={isGroupFull}
+                  eligibleAthletes={referenceEligibleAthletes}
+                  selectedAthleteIds={referenceAthleteIds}
+                  onToggleAthlete={toggleReferenceAthlete}
+                  maxAthletes={referenceMaxAthletes}
+                  isAthleteQuotaReached={isAthleteQuotaReached}
+                  quotaTextFor={(athleteId) => referenceEvent?.isIndividual !== false
+                    ? `个人项目已报满${currentComp?.maxIndividualEvents}项`
+                    : `集体项目已报满${currentComp?.maxTeamEvents}项`}
+                  onClearAthletes={() => setReferenceAthleteIds([])}
+                  onCancel={resetReferenceFlow}
+                  onConfirm={confirmReferenceAdd}
+                />
               )}
-
             </CardContent>
           </Card>
         </>
       )}
-        </>
+
+      {/* 页面内已填报项目抽屉 + 底部固定栏 + 快速新建运动员弹窗（统一为 RegFormLockedPanel） */}
+      <RegFormLockedPanel
+        club={club}
+        currentStep={currentStep}
+        tempRegs={tempRegs}
+        filledPanelOpen={filledPanelOpen}
+        onOpenPanel={() => setFilledPanelOpen(true)}
+        onClosePanel={() => setFilledPanelOpen(false)}
+        submittedLocked={submittedLocked}
+        adminEditUnlocked={adminEditUnlocked}
+        deadlineInfo={deadlineInfo}
+        deadlineLabel={competitions.find(c => c.id === selCompId)?.registrationDeadline || ''}
+        submitting={submitting}
+        onRemoveItem={removeTempReg}
+        onSubmit={submitAll}
+        showQuickAdd={showQuickAdd}
+        onShowQuickAdd={() => setShowQuickAdd(true)}
+        onCloseQuickAdd={() => setShowQuickAdd(false)}
+        quickAddForm={quickAddForm}
+        onChangeQuickAddForm={setQuickAddForm}
+        quickAvatarPreview={quickAvatarPreview}
+        onPickQuickAvatar={handleQuickAvatarChange}
+        onClearQuickAvatar={clearQuickAvatar}
+        quickIdCardTouched={quickIdCardTouched}
+        quickIdCardError={quickIdCardError}
+        onChangeIdCard={handleQuickIdCardChange}
+        onBlurIdCard={handleQuickIdCardBlur}
+        onSubmitQuickAdd={handleQuickAdd}
+        quickAdding={quickAdding}
+        canShowQuickAddTrigger={athletes.length === 0}
+      />
+    </div>
+  );
+}
+
+// ============================================================================
+// 子组件：5 步骤（#454 批次3-B 拆分）
+// 父组件保留所有 state 与业务函数，子组件通过 props 接收数据并触发回调。
+// ============================================================================
+
+interface Step1TeamProps {
+  competitions: Competition[];
+  selCompId: string;
+  onChangeSelCompId: (v: string) => void;
+  disabled: boolean;
+  currentComp: Competition | undefined;
+  deadlineInfo: { expired: boolean; level: 'safe' | 'warning' | 'urgent' | 'expired'; text: string; reason: string | null; ok: boolean } | null;
+  deadlineLabel: string;
+}
+
+/** Step 1：赛事选择 + 限报规则 + 截止倒计时（行 742-794 段） */
+function RegFormStep1Team({ competitions, selCompId, onChangeSelCompId, disabled, currentComp, deadlineInfo, deadlineLabel }: Step1TeamProps) {
+  return (
+    <>
+      <div className="mb-4 sm:mb-5 lg:flex lg:items-end lg:gap-5">
+        <div className="flex-1 lg:max-w-xl">
+          <Label className="text-slate-600 text-sm mb-1.5 block">选择赛事</Label>
+          <Select value={selCompId || undefined} onValueChange={onChangeSelCompId} disabled={disabled}>
+            <SelectTrigger className="w-full bg-white h-11 rounded-xl">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {competitions.map(c => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="hidden lg:flex items-center gap-2 text-xs text-slate-500 bg-white border border-slate-200 rounded-xl px-4 h-11">
+          <Trophy className="w-4 h-4 text-emerald-500" />
+          <span>报名信息实时保存，提交前可随时调整</span>
+        </div>
+      </div>
+
+      {currentComp && (currentComp.maxIndividualEvents || currentComp.maxTeamEvents) && (
+        <div className="mb-4 rounded-xl px-4 py-2.5 flex items-center gap-2 text-sm bg-purple-50 border border-purple-200 text-purple-700">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="font-medium">限报规则：</span>
+          <span>
+            {currentComp.maxIndividualEvents && currentComp.maxIndividualEvents > 0 ? `个人项目每人最多报${currentComp.maxIndividualEvents}项` : ''}
+            {currentComp.maxIndividualEvents && currentComp.maxTeamEvents ? '，' : ''}
+            {currentComp.maxTeamEvents && currentComp.maxTeamEvents > 0 ? `集体项目每人最多报${currentComp.maxTeamEvents}项` : ''}
+          </span>
+        </div>
       )}
 
-      {/* 页面内已填报项目抽屉：不切换页面，固定从底部展开 */}
-      {filledPanelOpen && tempRegs.length > 0 && currentStep === 'catalog' && (!submittedLocked || adminEditUnlocked) && (
-        <div className="fixed inset-0 z-40 bg-slate-900/35" onClick={() => setFilledPanelOpen(false)}>
+      {deadlineInfo && (
+        <div className={`mb-4 rounded-xl px-4 py-2.5 flex items-center gap-2 text-sm ${
+          deadlineInfo.expired
+            ? 'bg-red-50 border border-red-200 text-red-700'
+            : deadlineInfo.level === 'urgent'
+              ? 'bg-red-50 border border-red-200 text-red-600'
+              : deadlineInfo.level === 'warning'
+                ? 'bg-amber-50 border border-amber-200 text-amber-700'
+                : 'bg-blue-50 border border-blue-200 text-blue-700'
+        }`}>
+          <Timer className="w-4 h-4 shrink-0" />
+          <span className="font-medium">{deadlineInfo.text}</span>
+          {!deadlineInfo.expired && deadlineLabel && (
+            <span className="ml-auto text-xs opacity-70">截止日：{deadlineLabel}</span>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+interface Step2EventsProps {
+  referenceCategory: string;
+  referenceType: '全部' | '个人' | '集体';
+  onCategoryChange: (v: string) => void;
+  onTypeChange: (v: '全部' | '个人' | '集体') => void;
+  categories: string[];
+  events: Event[];
+  filledByEvent: TempReg[];
+  groupsMap: Record<string, EventGroup[]>;
+  isEventFull: (eventId: string) => boolean;
+  onPickEvent: (eventId: string) => void;
+  disabled: boolean;
+}
+
+/** Step 2：项目分类/类型筛选 + 项目网格（行 808-864 段） */
+function RegFormStep2Events({
+  referenceCategory, referenceType, onCategoryChange, onTypeChange,
+  categories, events, filledByEvent, groupsMap, isEventFull, onPickEvent, disabled,
+}: Step2EventsProps) {
+  return (
+    <div className={disabled ? 'pointer-events-none select-none opacity-60' : ''}>
+      <div className="mb-4">
+        <h3 className="font-semibold text-slate-800">选择报名项目</h3>
+        <p className="text-xs text-slate-500 mt-1">先选择项目和组别，再添加参赛队员</p>
+      </div>
+      <div className="rounded-xl bg-slate-50/80 border border-slate-100 p-3 mb-5">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <span className="text-xs font-medium text-slate-500">项目分类</span>
+          <span className="text-xs text-slate-400">{events.length} 个项目</span>
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          {['全部', ...categories].map(cat => (
+            <button key={cat} onClick={() => onCategoryChange(cat)} className={`shrink-0 px-4 py-1.5 rounded-full text-sm border transition-colors ${referenceCategory === cat ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400'}`}>
+              {cat}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-200/70">
+          <span className="text-xs font-medium text-slate-500 mr-1">项目类型</span>
+          {(['全部', '个人', '集体'] as const).map(type => (
+            <button key={type} onClick={() => onTypeChange(type)} className={`px-3 py-1 rounded-full text-xs border transition-colors ${referenceType === type ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-600 border-slate-200'}`}>
+              {type}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+        {events.map(ev => {
+          const evGroups = groupsMap[ev.id] || [];
+          const filled = filledByEvent.filter(r => r.eventId === ev.id).reduce((n, r) => n + r.athletes.length, 0);
+          const allFull = isEventFull(ev.id);
+          return (
+            <div key={ev.id} className="group rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-md hover:border-emerald-200 transition-all">
+              <div className="p-4 lg:p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-semibold text-slate-800 text-[15px] lg:text-base truncate">{ev.name}</h4>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      <Badge className="bg-amber-100 text-amber-700 border-amber-200">可报组别</Badge>
+                      <span className="text-xs text-slate-500 py-1">{ev.isIndividual === false ? `每队最多 ${ev.maxAthletes} 人` : '个人项目'}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-2">已填：{filled} 项</p>
+                  </div>
+                  <Button onClick={() => onPickEvent(ev.id)} disabled={allFull} className="shrink-0 bg-emerald-400 hover:bg-emerald-500 text-white rounded-full px-5">
+                    {allFull ? '已满' : '填报'}
+                  </Button>
+                </div>
+                <div className="mt-3 pt-3 border-t border-slate-100 text-sm text-slate-600 leading-relaxed line-clamp-2">可报名组别：{evGroups.length ? evGroups.map(g => g.name).join('、') : '暂未配置'}</div>
+              </div>
+            </div>
+          );
+        })}
+        {events.length === 0 && <div className="lg:col-span-2 py-12 text-center text-slate-400">暂无符合条件的报名项目</div>}
+      </div>
+    </div>
+  );
+}
+
+interface Step3AthletesProps {
+  event: Event;
+  allGroups: EventGroup[];
+  selectedGroupId: string;
+  onSelectGroup: (groupId: string) => void;
+  isGroupFull: (g: EventGroup) => boolean;
+  eligibleAthletes: Athlete[];
+  selectedAthleteIds: string[];
+  onToggleAthlete: (id: string) => void;
+  maxAthletes: number;
+  isAthleteQuotaReached: (id: string) => boolean;
+  quotaTextFor: (id: string) => string;
+  onClearAthletes: () => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+/** Step 3：选组别 + 选队员（行 908-958 段） */
+function RegFormStep3Athletes({
+  event, allGroups, selectedGroupId, onSelectGroup, isGroupFull,
+  eligibleAthletes, selectedAthleteIds, onToggleAthlete, maxAthletes,
+  isAthleteQuotaReached, quotaTextFor, onClearAthletes, onCancel, onConfirm,
+}: Step3AthletesProps) {
+  const hasGroup = Boolean(selectedGroupId);
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div><h3 className="font-semibold text-slate-800">选择报名组别</h3><p className="text-xs text-slate-500 mt-1">{event.name}</p></div>
+        <button onClick={onCancel} className="text-slate-400 hover:text-slate-700">×</button>
+      </div>
+      <div className="mb-5">
+        <div className="text-sm font-medium text-slate-700 mb-2">报名组别</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {allGroups.map(g => (
+            <button key={g.id} disabled={isGroupFull(g)} onClick={() => onSelectGroup(g.id)} className={`px-3 py-2 rounded-full border text-sm ${selectedGroupId === g.id ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : isGroupFull(g) ? 'opacity-40 bg-slate-100' : 'border-slate-300 bg-white text-slate-700'}`}>
+              {g.name}
+            </button>
+          ))}
+          {allGroups.length === 0 && (
+            <p className="col-span-full text-xs text-amber-600">该项目暂未配置报名组别</p>
+          )}
+        </div>
+      </div>
+      <div className="text-sm font-medium text-slate-700 mb-2">选择报名队员（{selectedAthleteIds.length}/{maxAthletes}）</div>
+      {!hasGroup ? (
+        <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 px-4 py-5 text-center text-sm text-amber-700">
+          请先选择报名组别，系统将自动筛选符合该组别的运动员
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-2 mb-3">
+            <button onClick={onClearAthletes} className={`px-4 py-1.5 rounded-full text-xs border ${selectedAthleteIds.length === 0 ? 'bg-slate-900 text-white' : 'bg-white border-slate-300'}`}>清空选择</button>
+            <span className="text-xs text-slate-400">符合条件 {eligibleAthletes.length} 人</span>
+          </div>
+          <div className="space-y-2 max-h-[48vh] overflow-y-auto">
+            {eligibleAthletes.map(a => {
+              const checked = selectedAthleteIds.includes(a.id);
+              const quotaReached = !checked && isAthleteQuotaReached(a.id);
+              return <button key={a.id} type="button" disabled={quotaReached} onClick={() => onToggleAthlete(a.id)} className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${checked ? 'border-emerald-400 bg-emerald-50' : quotaReached ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed' : 'border-slate-200 bg-white'}`}>
+                <span className={`w-5 h-5 rounded border flex items-center justify-center ${checked ? 'bg-emerald-500 border-emerald-500 text-white' : quotaReached ? 'border-slate-200 bg-slate-100' : 'border-slate-300'}`}>{checked ? '✓' : ''}</span>
+                {a.avatarUrl ? <img src={a.avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover" /> : <span className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-sm text-slate-500">{a.name[0]}</span>}
+                <span className={`font-medium ${quotaReached ? 'text-slate-400' : 'text-slate-800'}`}>{a.name}</span><span className="text-xs text-slate-400">{a.gender === 'male' ? '男' : '女'}</span>
+                {quotaReached && <span className="ml-auto text-[11px] text-slate-400 whitespace-nowrap">{quotaTextFor(a.id)}</span>}
+              </button>;
+            })}
+            {eligibleAthletes.length === 0 && <p className="py-6 text-center text-sm text-amber-600">队伍中没有符合该组别要求的运动员</p>}
+          </div>
+        </>
+      )}
+      <div className="mt-5 flex gap-3"><Button variant="outline" onClick={onCancel} className="flex-1">返回</Button><Button onClick={onConfirm} className="flex-1 bg-emerald-400 hover:bg-emerald-500 text-white">确认添加</Button></div>
+    </div>
+  );
+}
+
+interface Step4ReviewProps {
+  event: Event;
+  group: EventGroup;
+  groupsMap: Record<string, EventGroup[]>;
+  regs: TempReg[];
+  groupLimit: number | null;
+  onContinue: () => void;
+  onSaveReturn: () => void;
+}
+
+/** Step 4：单项目填报完成确认页（行 867-905 段） */
+function RegFormStep4Review({ event, group, groupsMap, regs, groupLimit, onContinue, onSaveReturn }: Step4ReviewProps) {
+  return (
+    <div>
+      <div className="mb-5">
+        <h3 className="font-semibold text-slate-800">{event.name}</h3>
+        <p className="text-xs text-slate-500 mt-1">可报组别：{(groupsMap[event.id] || []).map(g => g.name).join('、')}</p>
+        <p className="text-xs text-slate-500 mt-1">性别：{group.gender || '不限'}</p>
+      </div>
+      <div className="rounded-xl border border-amber-100 bg-amber-50/70 px-4 py-3 mb-4 text-sm text-slate-700">
+        <span className="font-medium">报名规则：</span> 该组别限报 {groupLimit ?? '不限'}{groupLimit !== null && ' 人'}
+      </div>
+      <div className="rounded-xl bg-slate-50 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="w-1 h-5 rounded-full bg-emerald-400" />
+          <h4 className="font-semibold text-slate-800">已填报</h4>
+        </div>
+        {regs.map((reg, index) => (
+          <div key={`${reg.eventId}-${reg.groupId}-${index}`} className="rounded-xl bg-white border border-slate-100 p-4">
+            <div className="flex flex-wrap gap-2 mb-3">
+              <Badge variant="outline" className="border-slate-200 text-slate-600">{reg.groupName}</Badge>
+              <Badge variant="outline" className="border-emerald-200 text-emerald-600">{event.isIndividual === false ? '集体' : '个人'}</Badge>
+            </div>
+            <div className="space-y-2">
+              {reg.athletes.map(athlete => (
+                <div key={athlete.athleteId} className="flex items-center gap-2 text-sm text-slate-700">
+                  <span className="w-7 h-7 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-medium">{athlete.name.slice(0, 1)}</span>
+                  {athlete.name}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 flex gap-3">
+        <Button variant="outline" onClick={onSaveReturn} className="flex-1">保存返回</Button>
+        <Button onClick={onContinue} className="flex-1 bg-emerald-400 hover:bg-emerald-500 text-white">添加报名项</Button>
+      </div>
+    </div>
+  );
+}
+
+interface LockedPanelProps {
+  club: ClubAccount;
+  currentStep: Step;
+  tempRegs: TempReg[];
+  filledPanelOpen: boolean;
+  onOpenPanel: () => void;
+  onClosePanel: () => void;
+  submittedLocked: boolean;
+  adminEditUnlocked: boolean;
+  deadlineInfo: { expired: boolean; level: string; text: string; reason: string | null; ok: boolean } | null;
+  deadlineLabel: string;
+  submitting: boolean;
+  onRemoveItem: (index: number) => void;
+  onSubmit: () => void;
+  showQuickAdd: boolean;
+  onShowQuickAdd: () => void;
+  onCloseQuickAdd: () => void;
+  quickAddForm: { name: string; gender: 'male' | 'female'; birthDate: string; idCard: string };
+  onChangeQuickAddForm: React.Dispatch<React.SetStateAction<{ name: string; gender: 'male' | 'female'; birthDate: string; idCard: string }>>;
+  quickAvatarPreview: string | null;
+  onPickQuickAvatar: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClearQuickAvatar: () => void;
+  quickIdCardTouched: boolean;
+  quickIdCardError: string | null;
+  onChangeIdCard: (v: string) => void;
+  onBlurIdCard: () => void;
+  onSubmitQuickAdd: () => void;
+  quickAdding: boolean;
+  canShowQuickAddTrigger: boolean;
+}
+
+/** LockedPanel：底部固定栏 + 已填报抽屉 + 快速新建运动员弹窗（行 967-1131 段） */
+function RegFormLockedPanel({
+  club, currentStep, tempRegs, filledPanelOpen, onOpenPanel, onClosePanel,
+  submittedLocked, adminEditUnlocked, deadlineInfo, deadlineLabel, submitting,
+  onRemoveItem, onSubmit, showQuickAdd, onShowQuickAdd, onCloseQuickAdd,
+  quickAddForm, onChangeQuickAddForm, quickAvatarPreview, onPickQuickAvatar, onClearQuickAvatar,
+  quickIdCardTouched, quickIdCardError, onChangeIdCard, onBlurIdCard, onSubmitQuickAdd,
+  quickAdding,
+}: LockedPanelProps) {
+  const showDrawer = filledPanelOpen && tempRegs.length > 0 && currentStep === 'catalog' && (!submittedLocked || adminEditUnlocked);
+  const showBottomBar = currentStep === 'catalog';
+  const deadlineBlocked = !adminEditUnlocked && deadlineInfo ? !deadlineInfo.ok : false;
+  const deadlineBtnLabel = deadlineInfo && !deadlineInfo.ok
+    ? (deadlineInfo.reason === 'COMPETITION_NOT_OPEN' ? '赛事未开放报名' : '报名已截止')
+    : null;
+
+  return (
+    <>
+      {/* 页面内已填报项目抽屉 */}
+      {showDrawer && (
+        <div className="fixed inset-0 z-40 bg-slate-900/35" onClick={onClosePanel}>
           <div
             className="absolute bottom-14 lg:bottom-0 inset-x-0 lg:left-64 w-auto rounded-t-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden"
             onClick={event => event.stopPropagation()}
@@ -976,7 +1179,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
                 <h3 className="font-semibold text-slate-800">报名项目清单（{tempRegs.length}项）</h3>
                 <p className="text-xs text-slate-500 mt-1">请确认项目、组别和运动员，确认后将提交并锁定报名</p>
               </div>
-              <button type="button" onClick={() => setFilledPanelOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-700" aria-label="关闭已填报项目">
+              <button type="button" onClick={onClosePanel} className="p-1.5 text-slate-400 hover:text-slate-700" aria-label="关闭已填报项目">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -991,41 +1194,41 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
                     </div>
                     <div className="text-xs text-slate-500 mt-2">{reg.athletes.map(a => a.name).join('、')}</div>
                   </div>
-                  <button type="button" onClick={() => removeTempReg(index)} className="shrink-0 text-slate-400 hover:text-red-500" aria-label={`删除${reg.eventName}填报项`}>
+                  <button type="button" onClick={() => onRemoveItem(index)} className="shrink-0 text-slate-400 hover:text-red-500" aria-label={`删除${reg.eventName}填报项`}>
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               ))}
             </div>
             <div className="px-5 py-4 border-t border-slate-100">
-              <Button onClick={submitAll} disabled={submitting || tempRegs.length === 0 || (submittedLocked && !adminEditUnlocked) || (!adminEditUnlocked && deadlineInfo ? !deadlineInfo.ok : false)} className="w-full rounded-full bg-emerald-400 hover:bg-emerald-500 text-white h-12 disabled:bg-slate-200 disabled:text-slate-500">
-                {submitting ? '提交中...' : adminEditUnlocked ? '确认修改后的项目清单并提交' : deadlineInfo && !deadlineInfo.ok ? (deadlineInfo.reason === 'COMPETITION_NOT_OPEN' ? '赛事未开放报名' : '报名已截止') : '确认项目清单并缴费报名'}
+              <Button onClick={onSubmit} disabled={submitting || tempRegs.length === 0 || (submittedLocked && !adminEditUnlocked) || deadlineBlocked} className="w-full rounded-full bg-emerald-400 hover:bg-emerald-500 text-white h-12 disabled:bg-slate-200 disabled:text-slate-500">
+                {submitting ? '提交中...' : adminEditUnlocked ? '确认修改后的项目清单并提交' : deadlineBtnLabel || '确认项目清单并缴费报名'}
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 页面底部固定操作栏：始终保持在项目列表最上层 */}
-      {currentStep === 'catalog' && (
+      {/* 页面底部固定操作栏 */}
+      {showBottomBar && (
         <div className="fixed bottom-14 lg:bottom-0 inset-x-0 lg:left-64 z-30 pointer-events-none">
           <div className="w-full pointer-events-auto">
             <div className="w-full min-h-16 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-6px_24px_rgba(15,23,42,0.12)] flex items-stretch">
               <button
                 type="button"
-                onClick={openSubmissionReview}
+                onClick={onOpenPanel}
                 disabled={submittedLocked || tempRegs.length === 0}
                 className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 xl:px-10 py-3 text-left transition-colors hover:bg-slate-50 disabled:cursor-default disabled:hover:bg-transparent"
               >
-                  <div className="font-medium text-slate-800 flex items-center gap-1.5 truncate">
-                    {adminEditUnlocked ? '管理员已允许修改报名项目' : submittedLocked ? '报名已提交，界面已锁定' : `已报名项目（${tempRegs.length}项）`}
-                    {filledPanelOpen ? <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />}
-                  </div>
+                <div className="font-medium text-slate-800 flex items-center gap-1.5 truncate">
+                  {adminEditUnlocked ? '管理员已允许修改报名项目' : submittedLocked ? '报名已提交，界面已锁定' : `已报名项目（${tempRegs.length}项）`}
+                  {filledPanelOpen ? <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />}
+                </div>
                 <div className="text-xs text-slate-500 mt-1 truncate">{adminEditUnlocked ? '请修改项目后重新提交，最终清单将覆盖原报名信息' : submittedLocked ? '报名信息已提交，当前报名界面不可再次操作' : '点击查看项目清单并确认缴费报名'}</div>
               </button>
               <div className="flex items-center px-3 sm:px-5 lg:px-6 border-l border-slate-100">
-                <Button type="button" onClick={openSubmissionReview} disabled={(submittedLocked && !adminEditUnlocked) || submitting || tempRegs.length === 0 || (!adminEditUnlocked && deadlineInfo ? !deadlineInfo.ok : false)} className={`rounded-full px-5 sm:px-8 h-11 whitespace-nowrap ${(submittedLocked && !adminEditUnlocked) || (!adminEditUnlocked && deadlineInfo && !deadlineInfo.ok) ? 'bg-slate-200 text-slate-600 hover:bg-slate-200' : 'bg-emerald-400 hover:bg-emerald-500 text-white'}`}>
-                  {adminEditUnlocked ? '查看修改后的项目清单' : submittedLocked ? '报名已提交' : deadlineInfo && !deadlineInfo.ok ? (deadlineInfo.reason === 'COMPETITION_NOT_OPEN' ? '赛事未开放报名' : '报名已截止') : '查看项目清单并缴费报名'}
+                <Button type="button" onClick={onOpenPanel} disabled={(submittedLocked && !adminEditUnlocked) || submitting || tempRegs.length === 0 || deadlineBlocked} className={`rounded-full px-5 sm:px-8 h-11 whitespace-nowrap ${(submittedLocked && !adminEditUnlocked) || deadlineBlocked ? 'bg-slate-200 text-slate-600 hover:bg-slate-200' : 'bg-emerald-400 hover:bg-emerald-500 text-white'}`}>
+                  {adminEditUnlocked ? '查看修改后的项目清单' : submittedLocked ? '报名已提交' : deadlineBtnLabel || '查看项目清单并缴费报名'}
                 </Button>
               </div>
             </div>
@@ -1035,16 +1238,15 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
 
       {/* 快速新建运动员弹窗 */}
       {showQuickAdd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowQuickAdd(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onCloseQuickAdd}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-slate-800">快速新建运动员</h3>
-              <button onClick={() => setShowQuickAdd(false)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100">
+              <button onClick={onCloseQuickAdd} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100">
                 <Trash2 className="w-4 h-4 text-slate-400" />
               </button>
             </div>
             <div className="space-y-3">
-              {/* 照片上传 */}
               <div className="flex flex-col items-center gap-1.5">
                 <div className="relative group">
                   {quickAvatarPreview ? (
@@ -1056,10 +1258,10 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
                   )}
                   <label className="absolute bottom-0 right-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer shadow hover:bg-blue-700 transition-colors">
                     <Camera className="w-3 h-3 text-white" />
-                    <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleQuickAvatarChange} />
+                    <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={onPickQuickAvatar} />
                   </label>
                   {quickAvatarPreview && (
-                    <button onClick={clearQuickAvatar} className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white shadow hover:bg-red-600 transition-colors">
+                    <button onClick={onClearQuickAvatar} className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white shadow hover:bg-red-600 transition-colors">
                       <X className="w-3 h-3" />
                     </button>
                   )}
@@ -1070,11 +1272,11 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
               <div>
                 <Label className="text-sm">姓名 <span className="text-red-400">*</span></Label>
                 <Input className="mt-1" placeholder="运动员姓名" value={quickAddForm.name}
-                  onChange={e => setQuickAddForm(p => ({ ...p, name: e.target.value }))} />
+                  onChange={e => onChangeQuickAddForm(p => ({ ...p, name: e.target.value }))} />
               </div>
               <div>
                 <Label className="text-sm">性别 <span className="text-red-400">*</span></Label>
-                <Select value={quickAddForm.gender} onValueChange={v => setQuickAddForm(p => ({ ...p, gender: v as 'male' | 'female' }))}>
+                <Select value={quickAddForm.gender} onValueChange={v => onChangeQuickAddForm(p => ({ ...p, gender: v as 'male' | 'female' }))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="male">男</SelectItem>
@@ -1085,7 +1287,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
               <div>
                 <Label className="text-sm">出生日期 <span className="text-red-400">*</span></Label>
                 <Input className="mt-1" type="date" value={quickAddForm.birthDate}
-                  onChange={e => setQuickAddForm(p => ({ ...p, birthDate: e.target.value }))} />
+                  onChange={e => onChangeQuickAddForm(p => ({ ...p, birthDate: e.target.value }))} />
               </div>
               <div>
                 <Label className="text-sm">身份证号 <span className="text-red-400">*</span></Label>
@@ -1094,8 +1296,8 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
                     className={`mt-1 ${quickIdCardTouched && quickIdCardError ? 'border-red-400 pr-8 focus-visible:ring-red-300' : quickIdCardTouched && !quickIdCardError && quickAddForm.idCard ? 'border-green-400 pr-8 focus-visible:ring-green-300' : ''}`}
                     placeholder="18位身份证号码"
                     value={quickAddForm.idCard}
-                    onChange={e => handleQuickIdCardChange(e.target.value)}
-                    onBlur={handleQuickIdCardBlur}
+                    onChange={e => onChangeIdCard(e.target.value)}
+                    onBlur={onBlurIdCard}
                     maxLength={18}
                   />
                   {quickIdCardTouched && quickAddForm.idCard && (
@@ -1121,14 +1323,14 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
               </div>
             </div>
             <div className="flex gap-3 mt-5">
-              <Button variant="outline" onClick={() => setShowQuickAdd(false)} className="flex-1">取消</Button>
-              <Button onClick={handleQuickAdd} disabled={quickAdding || (quickIdCardTouched && !!quickIdCardError)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
+              <Button variant="outline" onClick={onCloseQuickAdd} className="flex-1">取消</Button>
+              <Button onClick={onSubmitQuickAdd} disabled={quickAdding || (quickIdCardTouched && !!quickIdCardError)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
                 {quickAdding ? '创建中...' : <><UserPlus className="w-4 h-4" />创建并选中</>}
               </Button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
