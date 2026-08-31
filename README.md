@@ -7,7 +7,7 @@
 - 前端：React + TypeScript + Vite + Tailwind CSS
 - 后端：Cloudflare Pages Functions
 - 数据库：Cloudflare D1（`REGISTRATION_DB`）
-- 部署域名：`dztsbmxt.top`
+- 部署域名：`www.dztsbmxt.top`（生产主域，alias: `dztsbmxt.top`）
 
 ## 功能模块
 

@@ -1,6 +1,9 @@
 import type { DataQueryRequest, Env, QueryFilter, Row, SessionPrincipal } from './types';
 import { HttpError } from './http';
 import { stripSecrets } from './auth';
+import { collectAthleteAvatarKeys, deleteR2ByKey, deleteR2ByKeys } from './r2';
+
+type WaitUntil = (promise: Promise<unknown>) => void;
 
 type TableName = keyof typeof TABLES;
 type TableConfig = {
@@ -206,7 +209,7 @@ function writableRow(
       continue;
     }
     if (column === 'password_hash' && (typeof value !== 'string' || !/^[a-f0-9]{64}$/i.test(value))) {
-      throw new HttpError(400, 'password_hash must be a SHA-256 hash', 'INVALID_PASSWORD_HASH');
+      throw new HttpError(400, 'password_hash must be a 64-char SHA-256 hash', 'INVALID_PASSWORD_HASH');
     }
     output[column] = normalizeValue(config, column, value);
   }
@@ -328,15 +331,46 @@ async function updateRows(env: Env, config: TableConfig & { name: TableName }, b
   return rows;
 }
 
-async function deleteRows(env: Env, config: TableConfig & { name: TableName }, body: DataQueryRequest, session: SessionPrincipal | null): Promise<unknown> {
+async function collectAthleteAvatarKeysBeforeDelete(env: Env, config: TableConfig & { name: TableName }, filterClauses: string[], filterValues: unknown[]): Promise<string[]> {
+  if (config.name !== 'competitions' && config.name !== 'clubs') return [];
+  const fkColumn = config.name === 'competitions' ? 'competition_id' : 'club_id';
+  // 只关心有 avatar_url 的运动员；limit 上限取 MAX_ROWS * 5 防爆。
+  const sql = `SELECT avatar_url FROM athletes WHERE ${fkColumn} IN (SELECT id FROM ${config.name} WHERE ${filterClauses.join(' AND ')}) AND avatar_url IS NOT NULL LIMIT 5000`;
+  try {
+    const result = await env.REGISTRATION_DB.prepare(sql).bind(...filterValues).all<Row>();
+    return collectAthleteAvatarKeys(result.results || [], 'avatar_url');
+  } catch (err) {
+    console.warn(`[db] failed to collect athlete avatars for cascading delete (table=${config.name}):`, (err as Error)?.message || err);
+    return [];
+  }
+}
+
+async function deleteRows(env: Env, config: TableConfig & { name: TableName }, body: DataQueryRequest, session: SessionPrincipal | null, waitUntil?: WaitUntil): Promise<unknown> {
   const values: unknown[] = [];
   const clauses = filtersSql(config, body.filters, values);
   addOwnership(config, session, clauses, values);
   if (!clauses.length) throw new HttpError(400, 'Deletes require at least one filter', 'FILTER_REQUIRED');
+
+  // 联动清理：competitions / clubs 表的删除会通过 ON DELETE CASCADE 带走 athletes，
+  // 因此先在 DELETE 之前 SELECT 收集这些运动员的 avatar_url（仅取 athlete-avatars 桶内 key）。
+  // athletes 表自身则可以直接从 RETURNING 行中提取。
+  const cascadingKeys = await collectAthleteAvatarKeysBeforeDelete(env, config, clauses, [...values]);
+
   const result = await env.REGISTRATION_DB.prepare(
     `DELETE FROM ${config.name} WHERE ${clauses.join(' AND ')} RETURNING *`,
   ).bind(...values).all<Row>();
   const rows = (result.results || []).map(row => decodeRow(config, row));
+
+  // 调度异步 R2 清理：不阻塞主请求，但确保在响应返回后执行。
+  if (waitUntil && env.REGISTRATION_MEDIA) {
+    if (config.name === 'athletes') {
+      const singleKey = collectAthleteAvatarKeys(rows, 'avatar_url')[0];
+      if (singleKey) waitUntil(deleteR2ByKey(env, singleKey));
+    } else if (cascadingKeys.length > 0) {
+      waitUntil(deleteR2ByKeys(env, cascadingKeys));
+    }
+  }
+
   if (body.single) {
     if (rows.length !== 1 && (rows.length || body.single === 'single')) throw new HttpError(406, 'Single row response expected', 'PGRST116');
     return rows[0] || null;
@@ -349,6 +383,7 @@ export async function executeDataQuery(
   table: string,
   body: DataQueryRequest,
   session: SessionPrincipal | null,
+  waitUntil?: WaitUntil,
 ): Promise<{ data: unknown; count: number | null }> {
   validateRequest(body);
   const config = tableConfig(table);
@@ -359,7 +394,7 @@ export async function executeDataQuery(
     ? await insertRows(env, config, body, session)
     : body.action === 'update'
       ? await updateRows(env, config, body, session)
-      : await deleteRows(env, config, body, session);
+      : await deleteRows(env, config, body, session, waitUntil);
   const count = body.count === 'exact' ? (Array.isArray(data) ? data.length : data ? 1 : 0) : null;
   return { data, count };
 }

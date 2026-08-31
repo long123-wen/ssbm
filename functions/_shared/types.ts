@@ -31,11 +31,25 @@ export interface R2Bucket {
   delete(key: string): Promise<void>;
 }
 
+export interface KVNamespace {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, options?: { expirationTtl?: number; metadata?: Record<string, unknown> }): Promise<unknown>;
+  delete(key: string): Promise<void>;
+  list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<{ keys: Array<{ name: string; expiration?: number }>; list_complete: boolean; cursor?: string }>;
+}
+
 export interface Env {
   REGISTRATION_DB: D1Database;
   REGISTRATION_MEDIA?: R2Bucket;
+  RATE_LIMIT_KV?: KVNamespace;
   ALLOWED_ORIGINS?: string;
   SESSION_TTL_SECONDS?: string;
+  // Rate limit tuning knobs (all optional, defaults are used when missing).
+  ENABLE_RATE_LIMIT?: string;
+  RATE_LIMIT_WINDOW_SECONDS?: string;
+  RATE_LIMIT_IP_MAX?: string;
+  RATE_LIMIT_USER_MAX?: string;
+  RATE_LIMIT_LOCKOUT_SECONDS?: string;
 }
 
 export type Role = 'public' | 'club' | 'admin';

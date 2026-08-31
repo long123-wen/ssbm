@@ -1,5 +1,5 @@
-import type { DataQueryRequest, Env, PagesFunction, Row, SessionPrincipal } from '../_shared/types';
-import { executeDataQuery } from '../_shared/db';
+import type { DataQueryRequest, Env, PagesFunction, Row, SessionPrincipal } from './_shared/types';
+import { executeDataQuery } from './_shared/db';
 import {
   createClubRegistration,
   cancelClubRegistrations,
@@ -17,7 +17,7 @@ import {
   resubmitClubRegistration,
   reviewBatch,
   updateClubRegistration,
-} from '../_shared/workflows';
+} from './_shared/workflows';
 import {
   audit,
   clearSessionCookie,
@@ -31,7 +31,7 @@ import {
   sha256,
   stripSecrets,
   verifyPassword,
-} from '../_shared/auth';
+} from './_shared/auth';
 import {
   HttpError,
   allowedOrigin,
@@ -43,7 +43,12 @@ import {
   requestId,
   responseHeaders,
   supabaseResponse,
-} from '../_shared/http';
+} from './_shared/http';
+import {
+  clearAuthFailures,
+  enforceRateLimit,
+  recordAuthFailure,
+} from './_shared/rate-limit';
 
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
@@ -76,6 +81,10 @@ async function login(
 ): Promise<Response> {
   assertMethod(request, 'POST');
   const { username, password } = validateCredentials(await readJson<unknown>(request, 16 * 1024));
+  // Check rate limit *after* validating payload so we never burn a counter
+  // entry on malformed requests, but *before* touching the DB so the
+  // expensive password verification is skipped during an active lockout.
+  await enforceRateLimit(env, request, 'login', { username });
   const table = role === 'admin' ? 'admin_users' : 'clubs';
   const activeColumn = role === 'admin' ? 'is_active' : 'is_approved';
   const user = await env.REGISTRATION_DB.prepare(
@@ -85,6 +94,7 @@ async function login(
   const storedHash = user && typeof user.password_hash === 'string' ? user.password_hash : fallbackHash;
   const passwordMatches = await verifyPassword(password, storedHash);
   if (!user || !passwordMatches) {
+    waitUntil(recordAuthFailure(env, request, 'login', { username }));
     throw new HttpError(401, 'Invalid username or password', 'INVALID_CREDENTIALS');
   }
   if (!/^[a-f0-9]{64}$/i.test(storedHash)) {
@@ -95,6 +105,7 @@ async function login(
   const mustResetPassword = role === 'admin' && Number(user.reset_required) === 1;
   const safeUser = stripSecrets(user);
   waitUntil(audit(env, id, request, { role, userId: String(user.id), sessionId: '', expiresAt: '', ...(mustResetPassword ? { mustResetPassword: true } : {}) }, 'auth.login', table, String(user.id)));
+  waitUntil(clearAuthFailures(env, request, 'login', { username }));
   return jsonResponse(request, env, id, { data: { role, user: safeUser, must_reset_password: mustResetPassword }, error: null }, 200, {
     'Set-Cookie': sessionCookie(token, env),
   });
@@ -149,18 +160,47 @@ async function storage(request: Request, env: Env, id: string, segments: string[
   }
   const { bucket, key } = objectKey(segments);
   if (request.method === 'GET') {
+    // Athlete avatars are private. We require a session and verify that the
+    // first path segment of the object key equals the club owner (for club
+    // sessions) or accept any admin. Without this check anyone with a guessable
+    // URL could enumerate athlete photos.
+    const session = await requireSession(request, env, ['club', 'admin']);
+    const pathOnly = key.slice(bucket.length + 1);
+    const firstSegment = pathOnly.split('/').filter(Boolean)[0] || '';
+    if (!firstSegment || firstSegment.includes('\\') || firstSegment === '.' || firstSegment === '..') {
+      throw new HttpError(400, 'Invalid object key', 'INVALID_OBJECT_KEY');
+    }
+    if (session.role === 'club' && firstSegment !== session.userId) {
+      waitUntil(audit(env, id, request, session, 'storage.get.forbidden', bucket, key));
+      throw new HttpError(403, 'You do not have access to this resource', 'FORBIDDEN_RESOURCE');
+    }
     const object = await env.REGISTRATION_MEDIA.get(key);
     if (!object || !object.body) throw new HttpError(404, 'Object not found', 'OBJECT_NOT_FOUND');
     const headers = responseHeaders(request, env, id);
     object.writeHttpMetadata(headers);
     headers.set('Content-Type', object.httpMetadata?.contentType || headers.get('Content-Type') || 'application/octet-stream');
-    headers.set('Cache-Control', object.httpMetadata?.cacheControl || 'public, max-age=3600');
+    // Browser <img> requests are same-origin so the session cookie is sent
+    // automatically; keep cache private so a leaked URL cannot be served from
+    // a shared cache once the session is revoked.
+    headers.set('Cache-Control', 'private, max-age=300');
+    headers.set('X-Robots-Tag', 'noindex, nofollow');
     if (object.httpEtag) headers.set('ETag', object.httpEtag);
     return new Response(object.body, { status: 200, headers });
   }
 
   const actor = await requireSession(request, env);
   if (request.method === 'PUT') {
+    // Writes also enforce club ownership: path's first segment must match the
+    // club session's userId. Admins can write on behalf of any club.
+    const session = actor;
+    const pathOnly = key.slice(bucket.length + 1);
+    const firstSegment = pathOnly.split('/').filter(Boolean)[0] || '';
+    if (!firstSegment) {
+      throw new HttpError(400, 'Invalid object key', 'INVALID_OBJECT_KEY');
+    }
+    if (session.role === 'club' && firstSegment !== session.userId) {
+      throw new HttpError(403, 'You do not have access to this resource', 'FORBIDDEN_RESOURCE');
+    }
     const mime = (request.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
     if (!IMAGE_TYPES.has(mime)) throw new HttpError(415, 'Only JPEG, PNG, WebP, GIF and AVIF images are accepted', 'INVALID_IMAGE_TYPE');
     const declaredLength = Number(request.headers.get('Content-Length') || '0');
@@ -168,13 +208,22 @@ async function storage(request: Request, env: Env, id: string, segments: string[
     const bytes = await request.arrayBuffer();
     if (!bytes.byteLength || bytes.byteLength > MAX_IMAGE_BYTES) throw new HttpError(413, 'Image must be between 1 byte and 2 MiB', 'IMAGE_TOO_LARGE');
     await env.REGISTRATION_MEDIA.put(key, bytes, {
-      httpMetadata: { contentType: mime, cacheControl: 'public, max-age=3600' },
+      httpMetadata: { contentType: mime, cacheControl: 'private, max-age=300' },
       customMetadata: { uploadedBy: actor.userId, actorRole: actor.role },
     });
     waitUntil(audit(env, id, request, actor, 'storage.put', bucket, key, { bytes: bytes.byteLength, mime }));
     return jsonResponse(request, env, id, { data: { bucket, path: key.slice(bucket.length + 1) }, error: null });
   }
   if (request.method === 'DELETE') {
+    // Deletes also enforce club ownership.
+    const pathOnly = key.slice(bucket.length + 1);
+    const firstSegment = pathOnly.split('/').filter(Boolean)[0] || '';
+    if (!firstSegment) {
+      throw new HttpError(400, 'Invalid object key', 'INVALID_OBJECT_KEY');
+    }
+    if (actor.role === 'club' && firstSegment !== actor.userId) {
+      throw new HttpError(403, 'You do not have access to this resource', 'FORBIDDEN_RESOURCE');
+    }
     await env.REGISTRATION_MEDIA.delete(key);
     waitUntil(audit(env, id, request, actor, 'storage.delete', bucket, key));
     return jsonResponse(request, env, id, { data: null, error: null });
@@ -196,7 +245,7 @@ async function dataQuery(
     throw new HttpError(403, 'Password reset is required before continuing', 'PASSWORD_RESET_REQUIRED');
   }
   const body = await readJson<DataQueryRequest>(request);
-  const result = await executeDataQuery(env, table, body, session);
+  const result = await executeDataQuery(env, table, body, session, waitUntil);
   if (body.action !== 'select') {
     const recordId = !Array.isArray(result.data) && result.data && typeof result.data === 'object'
       ? String((result.data as Row).id || '') || undefined
@@ -223,6 +272,13 @@ export const onRequest: PagesFunction<Env> = async context => {
     if (request.method === 'OPTIONS') return corsPreflight(request, env, id);
     ensureOriginAllowed(request, env);
 
+    // R2 兼容层 storage 路径优先：/storage/<bucket>/object/<key...>
+    // 该 URL 直接出现在 avatar_url 字段里（被浏览器 <img> 拉取），
+    // 因此必须以根路径方式暴露，不能强制要求 /api/ 前缀。
+    if (segments[0] === 'storage' && segments.length >= 4) {
+      const storageSegments = ['', ...segments]; // 对齐 segments[1]='storage' 的下标期望
+      return await storage(request, env, id, storageSegments, context.waitUntil.bind(context));
+    }
     if (segments[0] !== 'api') throw new HttpError(404, 'API route not found', 'NOT_FOUND');
     if (segments[1] === 'data' && segments.length === 4 && segments[3] === 'query') {
       return await dataQuery(request, env, id, segments[2], context.waitUntil.bind(context));

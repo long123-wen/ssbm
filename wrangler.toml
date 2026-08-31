@@ -13,3 +13,9 @@ migrations_dir = "migrations"
 [[r2_buckets]]
 binding = "REGISTRATION_MEDIA"
 bucket_name = "rope-jump-registration-media-20260815"
+
+# Dedicated KV namespace for login rate limiting (sliding-window counters).
+# Created 2026-08-31, isolated from other projects on purpose.
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "87405efd93c6418a98e7799c13d7cb68"

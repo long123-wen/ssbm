@@ -103,9 +103,19 @@ export function errorResponse(request: Request, env: Env, id: string, error: unk
     code: bodyError.code,
     message: rawMessage,
   }));
+  // Surface rate-limit hints as standard HTTP headers so well-behaved
+  // clients (and our own frontend) can back off intelligently without
+  // parsing the response body.
+  const extraHeaders: Record<string, string> = {};
+  if (known && bodyError.code === 'RATE_LIMITED' && databaseError.details && typeof databaseError.details === 'object') {
+    const retry = (databaseError.details as { retry_after_seconds?: unknown }).retry_after_seconds;
+    if (typeof retry === 'number' && retry > 0) {
+      extraHeaders['Retry-After'] = String(Math.ceil(retry));
+    }
+  }
   return supabase
     ? supabaseResponse(request, env, id, null, bodyError, null, status)
-    : jsonResponse(request, env, id, { error: bodyError, request_id: id }, status);
+    : jsonResponse(request, env, id, { error: bodyError, request_id: id }, status, extraHeaders);
 }
 
 export function corsPreflight(request: Request, env: Env, id: string): Response {
