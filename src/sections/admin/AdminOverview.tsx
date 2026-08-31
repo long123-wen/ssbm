@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Users, Trophy, ClipboardList, TrendingUp, Building2, MapPin, Calendar, CheckCircle2, Clock, BarChart3, Lock, Unlock, X, User, GraduationCap, UserCheck, Shield, Swords } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -191,7 +191,8 @@ export default function AdminOverview({ competitionId, onNavigate }: Props) {
     }
   };
 
-  const statCards = [
+  // 顶部 4 张统计卡片（依赖 stats 派生，stats 未变时复用同一引用）
+  const statCards = useMemo(() => [
     {
       label: '参赛队伍', value: stats.totalClubs, unit: '支',
       icon: <Building2 className="w-5 h-5" />,
@@ -221,15 +222,20 @@ export default function AdminOverview({ competitionId, onNavigate }: Props) {
       change: '当前赛事',
       navigateTo: 'events' as const,
     },
-  ];
+  ], [stats.totalClubs, stats.totalTeams, stats.totalAthletes, stats.totalRegistrations, stats.confirmedRegistrations, stats.pendingRegistrations, stats.totalEvents]);
 
-  // 审核进度
-  const reviewPct = stats.totalRegistrations > 0
-    ? Math.round(((stats.confirmedRegistrations + stats.rejectedRegistrations) / stats.totalRegistrations) * 100)
-    : 0;
-  const confirmPct = stats.totalRegistrations > 0
-    ? Math.round((stats.confirmedRegistrations / stats.totalRegistrations) * 100)
-    : 0;
+  // 审核进度（只依赖 totalRegistrations / confirmedRegistrations / rejectedRegistrations）
+  const { reviewPct, confirmPct } = useMemo(() => {
+    const total = stats.totalRegistrations;
+    return {
+      reviewPct: total > 0
+        ? Math.round(((stats.confirmedRegistrations + stats.rejectedRegistrations) / total) * 100)
+        : 0,
+      confirmPct: total > 0
+        ? Math.round((stats.confirmedRegistrations / total) * 100)
+        : 0,
+    };
+  }, [stats.totalRegistrations, stats.confirmedRegistrations, stats.rejectedRegistrations]);
 
   if (loading) {
     return (

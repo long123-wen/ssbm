@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Download, FileText, Trophy, Printer, MapPin, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,7 +78,7 @@ export default function AdminOrderBook({ competitionId }: { competitionId: strin
     // 表头（第0行）
     rows.push(['项目', '年龄分组', '性别分组', '场次', '单位', '运动员']);
 
-    const map = buildGroupMap();
+    const map = tableData;
     const sortedEvents = Object.entries(map).sort((a, b) => a[0].localeCompare(b[0], 'zh'));
 
     for (const [eventName, subGroups] of sortedEvents) {
@@ -239,7 +239,8 @@ export default function AdminOrderBook({ competitionId }: { competitionId: strin
   /** 获取单位显示名称（优先队伍名，回退俱乐部名） */
   const getUnitName = (e: OrderEntry) => teamMap[e.clubId] || e.clubName;
 
-  const buildGroupMap = () => {
+  // ====== 表数据与统计（缓存 entries 派生，entries 未变时复用同一引用） ======
+  const tableData = useMemo(() => {
     const map: Record<string, { eventName: string; gender: string; ageGroup: string; entries: OrderEntry[] }[]> = {};
     entries.forEach(e => {
       const evName = e.eventName;
@@ -254,21 +255,21 @@ export default function AdminOrderBook({ competitionId }: { competitionId: strin
       group.entries.push(e);
     });
     return map;
-  };
+  }, [entries]);
 
-  const tableData = buildGroupMap();
+  const totalSessions = useMemo(
+    () => entries.length > 0 ? Math.max(...entries.map(e => e.sessionNumber)) : 0,
+    [entries]
+  );
 
-  // ====== 统计信息 ======
-  const totalSessions = entries.length > 0
-    ? Math.max(...entries.map(e => e.sessionNumber))
-    : 0;
-  const eventSummary = () => {
-    const map: Record<string, number> = {};
-    entries.forEach(e => {
-      map[e.eventName] = (map[e.eventName] || 0) + 1;
-    });
-    return map;
-  };
+  const eventCount = useMemo(
+    () => {
+      const map: Record<string, number> = {};
+      entries.forEach(e => { map[e.eventName] = (map[e.eventName] || 0) + 1; });
+      return Object.keys(map).length;
+    },
+    [entries]
+  );
 
   return (
     <div className="p-4 sm:p-6">
@@ -328,7 +329,7 @@ export default function AdminOrderBook({ competitionId }: { competitionId: strin
             <span className="text-sm text-slate-400">|</span>
             <span className="text-sm text-slate-500">
               共 <strong className="text-slate-700">{totalSessions}</strong> 个场次
-              · <strong className="text-slate-700">{Object.keys(eventSummary()).length}</strong> 个项目
+              · <strong className="text-slate-700">{eventCount}</strong> 个项目
               · <strong className="text-slate-700">{entries.length}</strong> 条记录
             </span>
           </>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Plus, Edit2, Trash2, UserCheck, GraduationCap, User, Download, Upload, FileSpreadsheet, Camera, X, AlertCircle, CheckCircle, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -398,6 +398,13 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // 顶部 3 张统计卡片（依赖 3 个 list 长度，未变时复用同一引用）
+  const summaryCards = useMemo(() => [
+    { label: '领队', count: leaders.length, icon: <UserCheck className="w-4 h-4 sm:w-5 sm:h-5" />, color: 'blue' },
+    { label: '教练员', count: coaches.length, icon: <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5" />, color: 'emerald' },
+    { label: '运动员', count: athletes.length, icon: <User className="w-4 h-4 sm:w-5 sm:h-5" />, color: 'violet' },
+  ], [leaders.length, coaches.length, athletes.length]);
+
   return (
     <div className="p-4 sm:p-6">
       <div className="mb-4 sm:mb-6">
@@ -407,11 +414,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
-        {[
-          { label: '领队', count: leaders.length, icon: <UserCheck className="w-4 h-4 sm:w-5 sm:h-5" />, color: 'blue' },
-          { label: '教练员', count: coaches.length, icon: <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5" />, color: 'emerald' },
-          { label: '运动员', count: athletes.length, icon: <User className="w-4 h-4 sm:w-5 sm:h-5" />, color: 'violet' },
-        ].map(s => (
+        {summaryCards.map(s => (
           <Card key={s.label} className="bg-white border-0 shadow-sm">
             <CardContent className="p-2.5 sm:p-4 flex flex-col sm:flex-row items-center sm:gap-3 gap-1 text-center sm:text-left">
               <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-${s.color}-50 flex items-center justify-center text-${s.color}-600 shrink-0`}>
