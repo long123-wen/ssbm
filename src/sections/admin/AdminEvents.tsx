@@ -380,70 +380,18 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
             </div>
           ) : (
             events.map(ev => (
-              <Card key={ev.id} className="bg-white border-0 shadow-sm">
-                <CardHeader className="py-0">
-                  <div className="flex items-center gap-3 py-3.5">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm shrink-0">
-                      {ev.orderIndex + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-slate-800">{ev.name}</span>
-                        <Badge variant="outline" className="text-xs text-slate-500">{ev.code}</Badge>
-                        <Badge className="text-xs bg-blue-50 text-blue-600 border-0">{ev.category}</Badge>
-                        {ev.description && <span className="text-xs text-slate-400">({ev.description})</span>}
-                      </div>
-                      <div className="text-xs text-slate-500 mt-0.5">
-                        {groupMap[ev.id]?.length || 0} 个分组
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Button size="sm" variant="ghost" onClick={() => openGrpPresetDialog(ev.id)} className="text-xs gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
-                        <Plus className="w-3.5 h-3.5" />预设分组
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => openEvEditDialog(ev)} className="text-slate-500 hover:text-slate-700">
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => deleteEvent(ev.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setExpandedEvent(prev => prev === ev.id ? null : ev.id)}>
-                        {expandedEvent === ev.id ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-
-                {expandedEvent === ev.id && (
-                  <CardContent className="pt-0 pb-3 px-4">
-                    <Separator className="mb-3" />
-                    {(!groupMap[ev.id] || groupMap[ev.id].length === 0) ? (
-                      <div className="text-center py-4 text-slate-400 text-sm">
-                        暂无分组，点击「预设分组」快速添加
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                        {(groupMap[ev.id] || []).map(g => (
-                          <div key={g.id} className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2.5">
-                            <div className={`w-2 h-2 rounded-full shrink-0 ${g.gender === 'male' ? 'bg-blue-400' : g.gender === 'female' ? 'bg-pink-400' : g.type === 'age' ? 'bg-amber-400' : 'bg-purple-400'}`} />
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-slate-700 truncate">{g.name}</div>
-                            </div>
-                            <div className="flex gap-1">
-                              <button onClick={() => openGrpEditDialog(ev.id, g)} className="p-1 text-slate-400 hover:text-slate-600">
-                                <Edit2 className="w-3 h-3" />
-                              </button>
-                              <button onClick={() => deleteGroup(g.id)} className="p-1 text-slate-400 hover:text-red-500">
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                )}
-              </Card>
+              <EventListCard
+                key={ev.id}
+                event={ev}
+                groups={groupMap[ev.id] || []}
+                expanded={expandedEvent === ev.id}
+                onToggleExpand={() => setExpandedEvent(prev => prev === ev.id ? null : ev.id)}
+                onAddGroups={() => openGrpPresetDialog(ev.id)}
+                onEditEvent={() => openEvEditDialog(ev)}
+                onDeleteEvent={() => deleteEvent(ev.id)}
+                onEditGroup={(g) => openGrpEditDialog(ev.id, g)}
+                onDeleteGroup={deleteGroup}
+              />
             ))
           )}
         </div>
@@ -773,6 +721,116 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+// ============================================================================
+// 子组件（按职责拆分；同文件内联以保留 AdminPersonnel 风格的内聚性）
+// ============================================================================
+
+/**
+ * 事件列表卡片（单事件行 + 展开后的分组网格）
+ *
+ * 数据与回调由父组件传入——本组件为纯渲染。
+ * 4 个 Dialog 的内部状态保留在主组件（批次 3 再做 Dialog 拆分）。
+ */
+interface EventListCardProps {
+  event: Event;
+  groups: EventGroup[];
+  expanded: boolean;
+  onToggleExpand: () => void;
+  onAddGroups: () => void;
+  onEditEvent: () => void;
+  onDeleteEvent: () => void;
+  onEditGroup: (group: EventGroup) => void;
+  onDeleteGroup: (groupId: string) => void;
+}
+
+function EventListCard({
+  event, groups, expanded,
+  onToggleExpand, onAddGroups, onEditEvent, onDeleteEvent,
+  onEditGroup, onDeleteGroup,
+}: EventListCardProps) {
+  return (
+    <Card className="bg-white border-0 shadow-sm">
+      <CardHeader className="py-0">
+        <div className="flex items-center gap-3 py-3.5">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm shrink-0">
+            {event.orderIndex + 1}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-slate-800">{event.name}</span>
+              <Badge variant="outline" className="text-xs text-slate-500">{event.code}</Badge>
+              <Badge className="text-xs bg-blue-50 text-blue-600 border-0">{event.category}</Badge>
+              {event.description && <span className="text-xs text-slate-400">({event.description})</span>}
+            </div>
+            <div className="text-xs text-slate-500 mt-0.5">
+              {groups.length} 个分组
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button size="sm" variant="ghost" onClick={onAddGroups} className="text-xs gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+              <Plus className="w-3.5 h-3.5" />预设分组
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onEditEvent} className="text-slate-500 hover:text-slate-700">
+              <Edit2 className="w-3.5 h-3.5" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onDeleteEvent} className="text-red-400 hover:text-red-600 hover:bg-red-50">
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onToggleExpand}>
+              {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+
+      {expanded && (
+        <CardContent className="pt-0 pb-3 px-4">
+          <Separator className="mb-3" />
+          {groups.length === 0 ? (
+            <div className="text-center py-4 text-slate-400 text-sm">
+              暂无分组，点击「预设分组」快速添加
+            </div>
+          ) : (
+            <GroupGridCard groups={groups} onEditGroup={onEditGroup} onDeleteGroup={onDeleteGroup} />
+          )}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * 分组网格卡片（展开后展示该事件下所有分组）
+ */
+interface GroupGridCardProps {
+  groups: EventGroup[];
+  onEditGroup: (group: EventGroup) => void;
+  onDeleteGroup: (groupId: string) => void;
+}
+
+function GroupGridCard({ groups, onEditGroup, onDeleteGroup }: GroupGridCardProps) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+      {groups.map(g => (
+        <div key={g.id} className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2.5">
+          <div className={`w-2 h-2 rounded-full shrink-0 ${g.gender === 'male' ? 'bg-blue-400' : g.gender === 'female' ? 'bg-pink-400' : g.type === 'age' ? 'bg-amber-400' : 'bg-purple-400'}`} />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-slate-700 truncate">{g.name}</div>
+          </div>
+          <div className="flex gap-1">
+            <button onClick={() => onEditGroup(g)} className="p-1 text-slate-400 hover:text-slate-600">
+              <Edit2 className="w-3 h-3" />
+            </button>
+            <button onClick={() => onDeleteGroup(g.id)} className="p-1 text-slate-400 hover:text-red-500">
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
