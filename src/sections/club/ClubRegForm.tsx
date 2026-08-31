@@ -15,6 +15,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { validateIdCard, extractBirthDate, extractGender } from '@/lib/idCardValidator';
 import { isGroupEligible } from '@/lib/groupMatcher';
+import { evaluateDeadline, formatDeadlineRemaining } from '@/lib/deadline';
 import type { Competition, Event, EventGroup, Athlete, ClubAccount } from '@/types';
 
 interface Props { club: ClubAccount; competitionId: string; teamProfileId: string }
@@ -154,20 +155,28 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     return gs.length > 0 && gs.every(isGroupFull);
   };
 
-  // 报名截止倒计时
-  const deadlineInfo = useMemo(() => {
+  // 报名截止倒计时（统一走 src/lib/deadline.ts 中心函数，与后端 functions/_shared/deadline.ts 语义一致）
+  // 返回 DeadlineDecision：ok=false 时 reason ∈ {'COMPETITION_NOT_OPEN','DEADLINE_PASSED'}；level 决定 UI 颜色档位
+  const deadlineDecision = useMemo(() => {
     const comp = competitions.find(c => c.id === selCompId);
-    if (!comp?.registrationDeadline) return null;
-    const deadline = new Date(comp.registrationDeadline + 'T23:59:59');
-    const now = new Date();
-    const diff = deadline.getTime() - now.getTime();
-    if (diff <= 0) return { expired: true, text: '报名已截止' };
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    if (days > 3) return { expired: false, text: `距截止还剩 ${days} 天`, level: 'safe' as const };
-    if (days > 0) return { expired: false, text: `距截止还剩 ${days} 天 ${hours} 小时`, level: 'warning' as const };
-    return { expired: false, text: `距截止还剩 ${hours} 小时`, level: 'urgent' as const };
+    if (!comp) return null;
+    return evaluateDeadline({
+      status: comp.status,
+      registration_deadline: comp.registrationDeadline,
+    });
   }, [competitions, selCompId]);
+  // 派生日历倒计时文案（safe/warning/urgent/expired + 文本），UI 横幅和按钮文案共用
+  const deadlineInfo = useMemo(() => {
+    if (!deadlineDecision) return null;
+    const text = formatDeadlineRemaining(deadlineDecision);
+    return {
+      expired: deadlineDecision.level === 'expired',
+      level: deadlineDecision.level,
+      text,
+      reason: deadlineDecision.reason,
+      ok: deadlineDecision.ok,
+    };
+  }, [deadlineDecision]);
 
   useEffect(() => {
     setLoading(true);
@@ -386,6 +395,12 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     if (submittedLocked && !adminEditUnlocked) return;
     if (!selCompId) return setError('请选择赛事后再提交');
     if (tempRegs.length === 0) return setError('报名清单为空');
+    // 兜底守卫：截止/未开放 → 直接拒绝（即使按钮绕过，submit 流程本身也再查一遍）
+    // 注意：admin 解锁修改（adminEditUnlocked）走 update 路径，按拍板"仅 create/resubmit 锁 deadline"放行
+    if (!adminEditUnlocked && deadlineInfo && !deadlineInfo.ok) {
+      const reason = deadlineInfo.reason || 'DEADLINE_PASSED';
+      return setError(reason === 'COMPETITION_NOT_OPEN' ? '该赛事当前未开放报名' : '报名已截止，无法提交');
+    }
 
     // 最终限报校验：即使旧页面、缓存草稿或手工请求绕过即时提示，也不能提交超项清单。
     const quotaViolations = findQuotaViolations(tempRegs, events, currentComp);
@@ -983,8 +998,8 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
               ))}
             </div>
             <div className="px-5 py-4 border-t border-slate-100">
-              <Button onClick={submitAll} disabled={submitting || tempRegs.length === 0 || (submittedLocked && !adminEditUnlocked)} className="w-full rounded-full bg-emerald-400 hover:bg-emerald-500 text-white h-12">
-                {submitting ? '提交中...' : adminEditUnlocked ? '确认修改后的项目清单并提交' : '确认项目清单并缴费报名'}
+              <Button onClick={submitAll} disabled={submitting || tempRegs.length === 0 || (submittedLocked && !adminEditUnlocked) || (!adminEditUnlocked && deadlineInfo ? !deadlineInfo.ok : false)} className="w-full rounded-full bg-emerald-400 hover:bg-emerald-500 text-white h-12 disabled:bg-slate-200 disabled:text-slate-500">
+                {submitting ? '提交中...' : adminEditUnlocked ? '确认修改后的项目清单并提交' : deadlineInfo && !deadlineInfo.ok ? (deadlineInfo.reason === 'COMPETITION_NOT_OPEN' ? '赛事未开放报名' : '报名已截止') : '确认项目清单并缴费报名'}
               </Button>
             </div>
           </div>
@@ -1009,8 +1024,8 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
                 <div className="text-xs text-slate-500 mt-1 truncate">{adminEditUnlocked ? '请修改项目后重新提交，最终清单将覆盖原报名信息' : submittedLocked ? '报名信息已提交，当前报名界面不可再次操作' : '点击查看项目清单并确认缴费报名'}</div>
               </button>
               <div className="flex items-center px-3 sm:px-5 lg:px-6 border-l border-slate-100">
-                <Button type="button" onClick={openSubmissionReview} disabled={(submittedLocked && !adminEditUnlocked) || submitting || tempRegs.length === 0} className={`rounded-full px-5 sm:px-8 h-11 whitespace-nowrap ${(submittedLocked && !adminEditUnlocked) ? 'bg-slate-200 text-slate-600 hover:bg-slate-200' : 'bg-emerald-400 hover:bg-emerald-500 text-white'}`}>
-                  {adminEditUnlocked ? '查看修改后的项目清单' : submittedLocked ? '报名已提交' : '查看项目清单并缴费报名'}
+                <Button type="button" onClick={openSubmissionReview} disabled={(submittedLocked && !adminEditUnlocked) || submitting || tempRegs.length === 0 || (!adminEditUnlocked && deadlineInfo ? !deadlineInfo.ok : false)} className={`rounded-full px-5 sm:px-8 h-11 whitespace-nowrap ${(submittedLocked && !adminEditUnlocked) || (!adminEditUnlocked && deadlineInfo && !deadlineInfo.ok) ? 'bg-slate-200 text-slate-600 hover:bg-slate-200' : 'bg-emerald-400 hover:bg-emerald-500 text-white'}`}>
+                  {adminEditUnlocked ? '查看修改后的项目清单' : submittedLocked ? '报名已提交' : deadlineInfo && !deadlineInfo.ok ? (deadlineInfo.reason === 'COMPETITION_NOT_OPEN' ? '赛事未开放报名' : '报名已截止') : '查看项目清单并缴费报名'}
                 </Button>
               </div>
             </div>

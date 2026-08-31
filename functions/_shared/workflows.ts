@@ -1,6 +1,7 @@
 import type { D1PreparedStatement, Env, Row, SessionPrincipal } from './types';
 import { audit } from './auth';
 import { HttpError, readJson } from './http';
+import { assertCompetitionOpen } from './deadline';
 
 const MAX_MUTATION_BYTES = 96 * 1024;
 const MAX_REVIEW_IDS = 50;
@@ -79,12 +80,6 @@ function parseClubRegistrationReplaceInput(raw: unknown): ClubRegistrationReplac
     throw new HttpError(422, 'Every registration must use the selected competition and team', 'INVALID_REGISTRATIONS');
   }
   return { competitionId, teamProfileId, registrations };
-}
-function competitionOpen(row: Row): void {
-  const now = new Date().toISOString();
-  if (row.status !== 'open') throw new HttpError(409, 'Competition is not open for registration', 'REGISTRATION_CLOSED');
-  const deadline = row.registration_deadline;
-  if (deadline && now > String(deadline)) throw new HttpError(409, 'Registration deadline has passed', 'REGISTRATION_CLOSED');
 }
 async function getCompetition(env: Env, competitionId: string): Promise<Row> {
   const row = await env.REGISTRATION_DB.prepare('SELECT * FROM competitions WHERE id = ? LIMIT 1').bind(competitionId).first<Row>();
@@ -183,8 +178,9 @@ async function buildClubRegistration(
   input: ClubRegistrationInput,
   excludeRegistrationIds: string[] = [],
   quotaReservations?: Map<string, number>,
+  options: { lockDeadline?: boolean } = {},
 ): Promise<{ registration: Row; athletes: Row[] }> {
-  const competition = await getCompetition(env, input.competitionId); competitionOpen(competition);
+  const competition = await getCompetition(env, input.competitionId); assertCompetitionOpen(competition, new Date(), { lockDeadline: options.lockDeadline !== false });
   const event = await getEventGroup(env, input.competitionId, input.eventId, input.groupId);
   const club = await env.REGISTRATION_DB.prepare('SELECT club_name FROM clubs WHERE id = ? AND is_approved = 1').bind(actor.userId).first<Row>();
   if (!club) throw new HttpError(403, 'Club is not approved', 'CLUB_NOT_ELIGIBLE');
@@ -353,7 +349,7 @@ export async function updateClubRegistration(request: Request, env: Env, actor: 
   if (athleteIds && (!athleteIds.length || athleteIds.length > 50 || new Set(athleteIds).size !== athleteIds.length)) throw new HttpError(422, 'athleteIds must contain 1-50 unique IDs', 'INVALID_ATHLETES');
   const statements: D1PreparedStatement[] = []; const now = new Date().toISOString();
   if (athleteIds) {
-    const validation = await buildClubRegistration(env, actor, { competitionId: String(existing.competition_id), eventId: String(existing.event_id), groupId: String(existing.group_id), athleteIds, coachId: coachId === undefined ? String(existing.coach_id || '') || undefined : coachId || undefined, teamProfileId: String(existing.team_profile_id || '') || undefined }, [registrationId]);
+    const validation = await buildClubRegistration(env, actor, { competitionId: String(existing.competition_id), eventId: String(existing.event_id), groupId: String(existing.group_id), athleteIds, coachId: coachId === undefined ? String(existing.coach_id || '') || undefined : coachId || undefined, teamProfileId: String(existing.team_profile_id || '') || undefined }, [registrationId], undefined, { lockDeadline: false });
     statements.push(env.REGISTRATION_DB.prepare('DELETE FROM registration_athletes WHERE registration_id = ?').bind(registrationId));
     for (const athlete of validation.athletes) statements.push(env.REGISTRATION_DB.prepare('INSERT INTO registration_athletes (registration_id, athlete_id) VALUES (?, ?)').bind(registrationId, athlete.id));
     statements.push(env.REGISTRATION_DB.prepare('UPDATE registrations SET athletes = ?, coach_id = ?, coach_name = ?, updated_at = ? WHERE id = ? AND status = \'pending\'').bind(validation.registration.athletes, validation.registration.coach_id, validation.registration.coach_name, now, registrationId));
@@ -369,7 +365,7 @@ export async function resubmitClubRegistration(request: Request, env: Env, actor
   const key = idempotencyKey(request); const operation = `club.registration.resubmit:${registrationId}`; const cached = await cachedResponse(env, actor.role, actor.userId, operation, key); if (cached) return cached;
   const existing = await env.REGISTRATION_DB.prepare('SELECT * FROM registrations WHERE id = ? AND club_id = ?').bind(registrationId, actor.userId).first<Row>();
   if (!existing) throw new HttpError(404, 'Registration not found', 'NOT_FOUND'); if (existing.status !== 'rejected') throw new HttpError(409, 'Only rejected registrations may be resubmitted', 'INVALID_STATE_TRANSITION');
-  competitionOpen(await getCompetition(env, String(existing.competition_id)));
+  assertCompetitionOpen(await getCompetition(env, String(existing.competition_id)));
   const result = await env.REGISTRATION_DB.batch([env.REGISTRATION_DB.prepare(`UPDATE registrations SET status = 'pending', reject_reason = NULL, updated_at = ? WHERE id = ? AND club_id = ? AND status = 'rejected'`).bind(new Date().toISOString(), registrationId, actor.userId), env.REGISTRATION_DB.prepare(`INSERT INTO registration_state_transitions (id,registration_type,registration_id,from_status,to_status,actor_type,actor_id,request_id) VALUES (?,'club',?,'rejected','pending','club',?,?)`).bind(crypto.randomUUID(), registrationId, actor.userId, requestId)]);
   if (!result[0].meta?.changes) throw new HttpError(409, 'Registration state changed; reload before resubmitting', 'STATE_CONFLICT'); const data = { id: registrationId, status: 'pending' }; await saveResponse(env, actor.role, actor.userId, operation, key, 200, data); await audit(env, requestId, request, actor, operation, 'registrations', registrationId); return { status: 200, data };
 }
