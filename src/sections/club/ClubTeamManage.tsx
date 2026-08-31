@@ -438,118 +438,28 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
           </TabsList>
         </div>
 
-        {/* Athletes */}
-        <TabsContent value="athletes" className="p-3 sm:p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 sm:mb-4 gap-2">
-            <span className="text-sm text-slate-600">共 {athletes.length} 名运动员</span>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={handleDownloadTemplate}>
-                <Download className="w-3 h-3" />模板
-              </Button>
-              <Button size="sm" className="h-8 text-xs gap-1" onClick={() => setBatchType('athlete')}>
-                <Upload className="w-3 h-3" />批量上传
-              </Button>
-              <Button size="sm" onClick={() => openAthlete()} className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
-                <Plus className="w-3.5 h-3.5" />添加
-              </Button>
-            </div>
-          </div>
-          {athletes.length === 0 ? (
-            <div className="text-center py-10 text-slate-400 text-sm border border-dashed border-slate-200 rounded-lg">
-              暂无运动员，点击右上角添加
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {athletes.map(a => (
-                <div key={a.id} className="flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-lg">
-                  {a.avatarUrl ? (
-                    <img src={a.avatarUrl} alt={a.name} className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm" />
-                  ) : (
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${a.gender === 'male' ? 'bg-blue-500' : 'bg-pink-500'}`}>
-                      {a.name[0]}
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-slate-800 text-sm">{a.name}</div>
-                    <div className="text-xs text-slate-500">
-                      {a.gender === 'male' ? '男' : '女'} · {a.birthDate}
-                      {a.idCard && ` · 证件：${a.idCard.slice(0, 6)}****`}
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => openAthlete(a)} className="p-1.5 text-slate-400 hover:text-slate-600">
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => setDeleteAthleteId(a.id)} className="p-1.5 text-slate-400 hover:text-red-500">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+        <AthletesTab
+          athletes={athletes}
+          onAdd={() => openAthlete()}
+          onEdit={openAthlete}
+          onDelete={setDeleteAthleteId}
+          onBatchUpload={() => setBatchType('athlete')}
+          onDownloadTemplate={handleDownloadTemplate}
+        />
 
-        {/* Coaches */}
-        <TabsContent value="coaches" className="p-3 sm:p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 sm:mb-4 gap-2">
-            <span className="text-sm text-slate-600">共 {coaches.length} 名教练员</span>
-            <Button size="sm" onClick={() => openCoach()} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5">
-              <Plus className="w-3.5 h-3.5" />添加
-            </Button>
-          </div>
-          {coaches.length === 0 ? (
-            <div className="text-center py-10 text-slate-400 text-sm border border-dashed border-slate-200 rounded-lg">
-              暂无教练员，点击右上角添加
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {coaches.map(c => (
-                <div key={c.id} className="flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-lg">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">
-                    {c.name[0]}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-slate-800 text-sm">{c.name}</div>
-                    <div className="text-xs text-slate-500">{c.phone}</div>
-                  </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => openCoach(c)} className="p-1.5 text-slate-400 hover:text-slate-600"><Edit2 className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => setDeleteCoachId(c.id)} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+        <CoachesTab
+          coaches={coaches}
+          onAdd={() => openCoach()}
+          onEdit={openCoach}
+          onDelete={setDeleteCoachId}
+        />
 
-        {/* Leaders */}
-        <TabsContent value="leaders" className="p-3 sm:p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 sm:mb-4 gap-2">
-            <span className="text-sm text-slate-600">共 {leaders.length} 名领队</span>
-            <Button size="sm" onClick={() => openLeader()} className="bg-violet-600 hover:bg-violet-700 text-white gap-1.5">
-              <Plus className="w-3.5 h-3.5" />添加
-            </Button>
-          </div>
-          {leaders.length === 0 ? (
-            <div className="text-center py-10 text-slate-400 text-sm border border-dashed border-slate-200 rounded-lg">
-              暂无领队信息，点击右上角添加
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {leaders.map(l => (
-                <div key={l.id} className="flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-lg">
-                  <div className="w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center text-white text-xs font-bold">{l.name[0]}</div>
-                  <div className="flex-1"><div className="font-medium text-slate-800 text-sm">{l.name}</div><div className="text-xs text-slate-500">{l.phone} · {l.position || '无职位'}</div></div>
-                  <div className="flex gap-1">
-                    <button onClick={() => openLeader(l)} className="p-1.5 text-slate-400 hover:text-slate-600"><Edit2 className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => setDeleteLeaderId(l.id)} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+        <LeadersTab
+          leaders={leaders}
+          onAdd={() => openLeader()}
+          onEdit={openLeader}
+          onDelete={setDeleteLeaderId}
+        />
       </Tabs>
 
       {/* Leader Dialog */}
@@ -816,3 +726,152 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
     </div>
   );
 }
+
+// ====== 子组件：运动员 Tab ======
+interface AthletesTabProps {
+  athletes: Athlete[];
+  onAdd: () => void;
+  onEdit: (a: Athlete) => void;
+  onDelete: (id: string) => void;
+  onBatchUpload: () => void;
+  onDownloadTemplate: () => void;
+}
+
+function AthletesTab({ athletes, onAdd, onEdit, onDelete, onBatchUpload, onDownloadTemplate }: AthletesTabProps) {
+  return (
+    <TabsContent value="athletes" className="p-3 sm:p-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 sm:mb-4 gap-2">
+        <span className="text-sm text-slate-600">共 {athletes.length} 名运动员</span>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={onDownloadTemplate}>
+            <Download className="w-3 h-3" />模板
+          </Button>
+          <Button size="sm" className="h-8 text-xs gap-1" onClick={onBatchUpload}>
+            <Upload className="w-3 h-3" />批量上传
+          </Button>
+          <Button size="sm" onClick={onAdd} className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
+            <Plus className="w-3.5 h-3.5" />添加
+          </Button>
+        </div>
+      </div>
+      {athletes.length === 0 ? (
+        <div className="text-center py-10 text-slate-400 text-sm border border-dashed border-slate-200 rounded-lg">
+          暂无运动员，点击右上角添加
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {athletes.map(a => (
+            <div key={a.id} className="flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-lg">
+              {a.avatarUrl ? (
+                <img src={a.avatarUrl} alt={a.name} className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm" />
+              ) : (
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${a.gender === 'male' ? 'bg-blue-500' : 'bg-pink-500'}`}>
+                  {a.name[0]}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-slate-800 text-sm">{a.name}</div>
+                <div className="text-xs text-slate-500">
+                  {a.gender === 'male' ? '男' : '女'} · {a.birthDate}
+                  {a.idCard && ` · 证件：${a.idCard.slice(0, 6)}****`}
+                </div>
+              </div>
+              <div className="flex gap-1">
+                <button onClick={() => onEdit(a)} className="p-1.5 text-slate-400 hover:text-slate-600">
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => onDelete(a.id)} className="p-1.5 text-slate-400 hover:text-red-500">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </TabsContent>
+  );
+}
+
+// ====== 子组件：教练员 Tab ======
+interface CoachesTabProps {
+  coaches: Coach[];
+  onAdd: () => void;
+  onEdit: (c: Coach) => void;
+  onDelete: (id: string) => void;
+}
+
+function CoachesTab({ coaches, onAdd, onEdit, onDelete }: CoachesTabProps) {
+  return (
+    <TabsContent value="coaches" className="p-3 sm:p-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 sm:mb-4 gap-2">
+        <span className="text-sm text-slate-600">共 {coaches.length} 名教练员</span>
+        <Button size="sm" onClick={onAdd} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5">
+          <Plus className="w-3.5 h-3.5" />添加
+        </Button>
+      </div>
+      {coaches.length === 0 ? (
+        <div className="text-center py-10 text-slate-400 text-sm border border-dashed border-slate-200 rounded-lg">
+          暂无教练员，点击右上角添加
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {coaches.map(c => (
+            <div key={c.id} className="flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-lg">
+              <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">
+                {c.name[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-slate-800 text-sm">{c.name}</div>
+                <div className="text-xs text-slate-500">{c.phone}</div>
+              </div>
+              <div className="flex gap-1">
+                <button onClick={() => onEdit(c)} className="p-1.5 text-slate-400 hover:text-slate-600"><Edit2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => onDelete(c.id)} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </TabsContent>
+  );
+}
+
+// ====== 子组件：领队 Tab ======
+interface LeadersTabProps {
+  leaders: TeamLeader[];
+  onAdd: () => void;
+  onEdit: (l: TeamLeader) => void;
+  onDelete: (id: string) => void;
+}
+
+function LeadersTab({ leaders, onAdd, onEdit, onDelete }: LeadersTabProps) {
+  return (
+    <TabsContent value="leaders" className="p-3 sm:p-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 sm:mb-4 gap-2">
+        <span className="text-sm text-slate-600">共 {leaders.length} 名领队</span>
+        <Button size="sm" onClick={onAdd} className="bg-violet-600 hover:bg-violet-700 text-white gap-1.5">
+          <Plus className="w-3.5 h-3.5" />添加
+        </Button>
+      </div>
+      {leaders.length === 0 ? (
+        <div className="text-center py-10 text-slate-400 text-sm border border-dashed border-slate-200 rounded-lg">
+          暂无领队信息，点击右上角添加
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {leaders.map(l => (
+            <div key={l.id} className="flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-lg">
+              <div className="w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center text-white text-xs font-bold">{l.name[0]}</div>
+              <div className="flex-1"><div className="font-medium text-slate-800 text-sm">{l.name}</div><div className="text-xs text-slate-500">{l.phone} · {l.position || '无职位'}</div></div>
+              <div className="flex gap-1">
+                <button onClick={() => onEdit(l)} className="p-1.5 text-slate-400 hover:text-slate-600"><Edit2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => onDelete(l.id)} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </TabsContent>
+  );
+}
+
