@@ -105,8 +105,17 @@ if push_with_retry "force-with-lease" git push --force-with-lease origin main; t
   echo "[autopush] OK, force-pushed to remote"
   exit 0
 fi
+# Final fallback: plain --force. Needed when local and remote have no common
+# ancestor (e.g. remote was seeded via a Git Data API mega-commit). In that
+# case force-with-lease always fails with "stale info" because there is no
+# remote-tracking ref to lease against. User-approved "latest wins" policy.
+echo "[autopush] force-with-lease failed (likely no common ancestor). Trying plain --force ..."
+if push_with_retry "force" git push --force origin main; then
+  echo "[autopush] OK, force-pushed to remote"
+  exit 0
+fi
 echo "[autopush] push failed. Likely sandbox blocks github.com:443."
 echo "[autopush] Local commit saved as $(git rev-parse --short HEAD)."
 echo "[autopush] NEXT: open a local terminal in $REPO_DIR and run:"
-echo "[autopush]   git push --force-with-lease origin main"
+echo "[autopush]   git push --force origin main"
 exit 0
