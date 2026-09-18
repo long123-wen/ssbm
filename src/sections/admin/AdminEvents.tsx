@@ -37,8 +37,8 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
   const [grpEditForm, setGrpEditForm] = useState({ name: '', orderIndex: 0 });
   // 预设勾选：{ age_1: true, age_2: true, gender_m: true, ... }
   const [selGroupPresets, setSelGroupPresets] = useState<Record<string, boolean>>({});
-  // 命名体系选择（'zh' 中文 / 'u' U系列）；赛事已有分组时会被自动锁定
-  const [manualNamingSystem, setManualNamingSystem] = useState<'zh' | 'u'>('zh');
+  // 命名体系选择（'zh' 中文 / 'u' U系列 / 'student' 学生组）；赛事已有分组时会被自动锁定
+  const [manualNamingSystem, setManualNamingSystem] = useState<'zh' | 'u' | 'student'>('zh');
 
   // 项目预设对话框
   const [evDialog, setEvDialog] = useState(false);
@@ -317,7 +317,7 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
   const selectedGroupCount = Object.values(selGroupPresets).filter(Boolean).length;
   const selectedEventCount = Object.values(selEventPresets).filter(Boolean).length;
 
-  // ---- 命名体系互斥：同一场比赛只能用一套（中文 / U 系列）----
+  // ---- 命名体系互斥：同一场比赛只能用一套（中文 / U 系列 / 学生组）----
   // 汇总该赛事下所有已有分组名（跨项目），据此锁定体系
   const allGroupNamesInComp = useMemo(
     () => Object.values(groupMap).flat().map(g => g.name),
@@ -749,9 +749,9 @@ interface GroupPresetDialogProps {
   alreadyAddedCount: number;
   visibleGroups: typeof PRESET_COMBINED_GROUPS;
   alreadyAddedNames: Set<string>;
-  activeNamingSystem: 'zh' | 'u' | null;
-  lockedNamingSystem: 'zh' | 'u' | null;
-  onChangeNamingSystem: (sys: 'zh' | 'u') => void;
+  activeNamingSystem: 'zh' | 'u' | 'student' | null;
+  lockedNamingSystem: 'zh' | 'u' | 'student' | null;
+  onChangeNamingSystem: (sys: 'zh' | 'u' | 'student') => void;
   saving: boolean;
   onSaveEdit: () => void;
   onSavePreset: () => void;
@@ -798,7 +798,7 @@ function GroupPresetDialog({
             <div className="shrink-0 mb-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-slate-500">命名体系</span>
-                {([['zh', '中文命名'], ['u', 'U 系列命名']] as const).map(([sys, label]) => {
+                {([['zh', '中文命名'], ['u', 'U 系列命名'], ['student', '学生组']] as const).map(([sys, label]) => {
                   const disabled = lockedNamingSystem !== null && lockedNamingSystem !== sys;
                   const active = activeNamingSystem === sys;
                   return (
@@ -819,7 +819,7 @@ function GroupPresetDialog({
               </div>
               <p className="text-[11px] text-slate-400 mt-1.5">
                 {lockedNamingSystem
-                  ? `本场赛事已使用「${lockedNamingSystem === 'u' ? 'U 系列命名' : '中文命名'}」，不能混用另一套。如需切换，请先删除现有年龄分组。`
+                  ? `本场赛事已使用「${lockedNamingSystem === 'u' ? 'U 系列命名' : lockedNamingSystem === 'student' ? '学生组命名' : '中文命名'}」，不能混用另一套。如需切换，请先删除现有年龄分组。`
                   : '同一场比赛只能使用一套命名体系，选定后不可混用。'}
               </p>
             </div>
