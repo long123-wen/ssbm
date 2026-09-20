@@ -44,7 +44,7 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
   const [evDialog, setEvDialog] = useState(false);
   const [evEdit, setEvEdit] = useState<Event | null>(null);
   // 编辑模式的表单
-  const [evEditForm, setEvEditForm] = useState({ name: '', code: '', category: '', maxAthletes: 1, orderIndex: 0, description: '' });
+  const [evEditForm, setEvEditForm] = useState({ name: '', code: '', category: '', maxAthletes: 1, minAthletes: 0, orderIndex: 0, description: '' });
   // 预设勾选
   const [selEventPresets, setSelEventPresets] = useState<Record<string, boolean>>({});
 
@@ -101,6 +101,7 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
       code: ev.code,
       category: ev.category,
       maxAthletes: ev.maxAthletes,
+      minAthletes: ev.minAthletes || 0,
       orderIndex: ev.orderIndex,
       description: ev.description || '',
     });
@@ -145,6 +146,7 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
           category: pe.category,
           description: pe.description || pe.note || '',
           maxAthletes: pe.maxAthletes,
+          minAthletes: pe.minAthletes || 0,
           isIndividual: pe.isIndividual,
           orderIndex: orderIndex++,
         });
@@ -578,7 +580,7 @@ interface EventPresetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editTarget: Event | null;
-  editForm: { name: string; code: string; category: string; maxAthletes: number; orderIndex: number; description: string };
+  editForm: { name: string; code: string; category: string; maxAthletes: number; minAthletes: number; orderIndex: number; description: string };
   onEditFormChange: (updater: (prev: any) => any) => void;
   selPresets: Record<string, boolean>;
   onTogglePreset: (id: string) => void;
@@ -625,6 +627,18 @@ function EventPresetDialog({
             <div className="grid grid-cols-2 gap-3">
               <div><Label>项目编码</Label><Input className="mt-1" value={editForm.code} onChange={e => onEditFormChange(p => ({ ...p, code: e.target.value }))} /></div>
               <div><Label>项目类别</Label><Input className="mt-1" value={editForm.category} onChange={e => onEditFormChange(p => ({ ...p, category: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>最少参赛人数</Label>
+                <Input className="mt-1" type="number" min={0} value={editForm.minAthletes} onChange={e => onEditFormChange(p => ({ ...p, minAthletes: Math.max(0, +e.target.value || 0) }))} />
+                <p className="text-[11px] text-slate-400 mt-1">0 = 不限制（如集体套路要求 6-12 人则填 6）</p>
+              </div>
+              <div>
+                <Label>最多参赛人数</Label>
+                <Input className="mt-1" type="number" min={1} value={editForm.maxAthletes} onChange={e => onEditFormChange(p => ({ ...p, maxAthletes: Math.max(1, +e.target.value || 1) }))} />
+                <p className="text-[11px] text-slate-400 mt-1">每队最多可报人数</p>
+              </div>
             </div>
           </div>
         ) : (
@@ -697,7 +711,7 @@ function EventPresetDialog({
                                         </div>
                                         <div className="flex items-center gap-1.5 mt-0.5">
                                           <code className="text-[10px] bg-slate-100 px-1 rounded text-slate-500">{ev.code}</code>
-                                          <span className="text-[10px] text-slate-400">{ev.maxAthletes}人</span>
+                                          <span className="text-[10px] text-slate-400">{ev.minAthletes ? `${ev.minAthletes}-${ev.maxAthletes}人` : `${ev.maxAthletes}人`}</span>
                                           {ev.note && <span className="text-[10px] text-amber-500">{ev.note}</span>}
                                           {ev.description && <span className="text-[10px] text-slate-400">({ev.description})</span>}
                                         </div>

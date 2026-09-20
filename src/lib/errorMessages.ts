@@ -54,6 +54,7 @@ const COMPETITION: Record<string, string> = {
   TEAM_EVENT_QUOTA_EXCEEDED: '该队伍集体项目报名数已达上限',
   GROUP_CAPACITY_EXCEEDED: '该组别报名人数已满',
   EVENT_ATHLETE_LIMIT: '所选运动员超过该项目名额',
+  EVENT_ATHLETE_MIN: '参赛人数少于该项目要求的最少人数',
 };
 
 // === 业务校验 ===

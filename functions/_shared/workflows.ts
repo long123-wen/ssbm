@@ -159,7 +159,15 @@ function assertEligible(group: Row, athlete: Row, startDate: string, isIndividua
   }
 }
 async function assertLimits(env: Env, input: ClubRegistrationInput, event: Row, clubId: string, excludeRegistrationIds: string[] = []): Promise<void> {
-  if (input.athleteIds.length > Number(event.max_athletes)) throw new HttpError(422, 'Selected athletes exceed this event capacity', 'EVENT_ATHLETE_LIMIT');
+  const count = input.athleteIds.length;
+  // 上限：每队最多参赛人数
+  if (count > Number(event.max_athletes)) throw new HttpError(422, 'Selected athletes exceed this event capacity', 'EVENT_ATHLETE_LIMIT');
+  // 下限：集体套路类项目有最少人数要求（如 6-12 人 / 9-18 人）。
+  // min_athletes 为 0 或缺省表示不限制，保持旧行为。
+  const minAthletes = Number(event.min_athletes || 0);
+  if (Number.isFinite(minAthletes) && minAthletes > 0 && count < minAthletes) {
+    throw new HttpError(422, `This event requires at least ${minAthletes} athletes`, 'EVENT_ATHLETE_MIN');
+  }
   const limits = await env.REGISTRATION_DB.prepare(`SELECT scope, target_id, max_registrations FROM limit_configs
     WHERE competition_id = ? AND ((scope = 'event' AND target_id = ?) OR (scope = 'group' AND target_id = ?) OR (scope = 'team' AND target_id = ?))`)
     .bind(input.competitionId, input.eventId, input.groupId, input.teamProfileId || clubId).all<Row>();

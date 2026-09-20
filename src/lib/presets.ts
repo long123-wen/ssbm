@@ -36,6 +36,8 @@ export interface PresetEvent {
   subCategory: string;   // 个人速度赛/集体速度赛/个人花样等
   description?: string;
   maxAthletes: number;   // 每队最多人数
+  /** 每队最少人数（0 或缺省 = 不限制）。集体套路类项目有下限要求 */
+  minAthletes?: number;
   isIndividual: boolean; // 是否个人项目
   note?: string;         // 特殊说明（如12周岁以上）
 }
@@ -320,19 +322,20 @@ export const PRESET_EVENTS: PresetEvent[] = [
   { id: 'ev_30', name: '个人绳一对一挑战赛',              code: 'VS-1v1',   category: '挑战赛', subCategory: '一对一', maxAthletes: 2, isIndividual: true, description: '1v1斗绳' },
 
   // ---- 6. 规定赛 > 个人花样集体规定套路 ----
-  { id: 'ev_31', name: '个人花样集体规定套路初级',          code: 'PR-E1',   category: '规定赛', subCategory: '个人花样集体规定套路', maxAthletes: 8, isIndividual: false },
-  { id: 'ev_32', name: '个人花样集体规定套路中级',          code: 'PR-E2',   category: '规定赛', subCategory: '个人花样集体规定套路', maxAthletes: 8, isIndividual: false },
-  { id: 'ev_33', name: '个人花样集体规定套路高级',          code: 'PR-E3',   category: '规定赛', subCategory: '个人花样集体规定套路', maxAthletes: 8, isIndividual: false },
+  // 《全国跳绳竞赛规则》：个人花样集体规定套路 6-12 人
+  { id: 'ev_31', name: '个人花样集体规定套路初级',          code: 'PR-E1',   category: '规定赛', subCategory: '个人花样集体规定套路', minAthletes: 6, maxAthletes: 12, isIndividual: false, description: '6-12 人' },
+  { id: 'ev_32', name: '个人花样集体规定套路中级',          code: 'PR-E2',   category: '规定赛', subCategory: '个人花样集体规定套路', minAthletes: 6, maxAthletes: 12, isIndividual: false, description: '6-12 人' },
+  { id: 'ev_33', name: '个人花样集体规定套路高级',          code: 'PR-E3',   category: '规定赛', subCategory: '个人花样集体规定套路', minAthletes: 6, maxAthletes: 12, isIndividual: false, description: '6-12 人' },
 
   // ---- 6. 规定赛 > 车轮花样集体规定套路 ----
   // 《全国跳绳竞赛规则》(三)：车轮花样集体规定套路 6-12 人，规定音乐
-  { id: 'ev_34', name: '车轮花样集体规定基础套路',          code: 'PR-W1',   category: '规定赛', subCategory: '车轮花样集体规定套路', maxAthletes: 12, isIndividual: false, description: '6-12 人，规定音乐' },
-  { id: 'ev_35', name: '车轮花样集体规定提高套路',          code: 'PR-W2',   category: '规定赛', subCategory: '车轮花样集体规定套路', maxAthletes: 12, isIndividual: false, description: '6-12 人，规定音乐' },
+  { id: 'ev_34', name: '车轮花样集体规定基础套路',          code: 'PR-W1',   category: '规定赛', subCategory: '车轮花样集体规定套路', minAthletes: 6, maxAthletes: 12, isIndividual: false, description: '6-12 人，规定音乐' },
+  { id: 'ev_35', name: '车轮花样集体规定提高套路',          code: 'PR-W2',   category: '规定赛', subCategory: '车轮花样集体规定套路', minAthletes: 6, maxAthletes: 12, isIndividual: false, description: '6-12 人，规定音乐' },
 
   // ---- 6. 规定赛 > 交互绳花样集体规定套路 ----
   // 《全国跳绳竞赛规则》(四)：交互绳花样集体规定套路 9-18 人，规定音乐
-  { id: 'ev_36', name: '交互绳花样集体规定基础套路',        code: 'PR-I1',   category: '规定赛', subCategory: '交互绳花样集体规定套路', maxAthletes: 18, isIndividual: false, description: '9-18 人，规定音乐' },
-  { id: 'ev_37', name: '交互绳花样集体规定提高套路',        code: 'PR-I2',   category: '规定赛', subCategory: '交互绳花样集体规定套路', maxAthletes: 18, isIndividual: false, description: '9-18 人，规定音乐' },
+  { id: 'ev_36', name: '交互绳花样集体规定基础套路',        code: 'PR-I1',   category: '规定赛', subCategory: '交互绳花样集体规定套路', minAthletes: 9, maxAthletes: 18, isIndividual: false, description: '9-18 人，规定音乐' },
+  { id: 'ev_37', name: '交互绳花样集体规定提高套路',        code: 'PR-I2',   category: '规定赛', subCategory: '交互绳花样集体规定套路', minAthletes: 9, maxAthletes: 18, isIndividual: false, description: '9-18 人，规定音乐' },
 ];
 
 // ========================

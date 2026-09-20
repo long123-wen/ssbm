@@ -113,7 +113,7 @@ export const eventStore = {
     const { data, error } = await supabase.from(TABLES.events).insert({
       competition_id: input.competitionId, name: input.name, code: input.code,
       category: input.category, description: input.description,
-      max_athletes: input.maxAthletes, is_individual: input.isIndividual ?? true,
+      max_athletes: input.maxAthletes, min_athletes: input.minAthletes || 0, is_individual: input.isIndividual ?? true,
       order_index: input.orderIndex,
     }).select().single();
     if (error) throw error;
@@ -127,6 +127,7 @@ export const eventStore = {
     if (input.category !== undefined) patch.category = input.category;
     if (input.description !== undefined) patch.description = input.description;
     if (input.maxAthletes !== undefined) patch.max_athletes = input.maxAthletes;
+    if (input.minAthletes !== undefined) patch.min_athletes = input.minAthletes || 0;
     if (input.isIndividual !== undefined) patch.is_individual = input.isIndividual;
     if (input.orderIndex !== undefined) patch.order_index = input.orderIndex;
 
@@ -1099,7 +1100,8 @@ function mapEvent(row: Record<string, unknown>): Event {
   return {
     id: row.id as string, competitionId: row.competition_id as string, name: row.name as string, code: row.code as string,
     category: row.category as string, description: (row.description as string) || undefined,
-    maxAthletes: row.max_athletes as number, isIndividual: (row.is_individual as boolean) ?? true,
+    maxAthletes: row.max_athletes as number, minAthletes: (row.min_athletes as number) || 0,
+    isIndividual: (row.is_individual as boolean) ?? true,
     orderIndex: row.order_index as number, createdAt: row.created_at as string,
   };
 }

@@ -21,7 +21,7 @@ export const TABLES = {
     publicRead: true,
   },
   events: {
-    columns: ['id','competition_id','name','code','category','description','max_athletes','is_individual','order_index','created_at','updated_at'],
+    columns: ['id','competition_id','name','code','category','description','min_athletes','max_athletes','is_individual','order_index','created_at','updated_at'],
     booleans: ['is_individual'], publicRead: true,
   },
   event_groups: {

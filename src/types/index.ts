@@ -46,6 +46,8 @@ export interface Event {
   category: string;       // 单绳/车轮/交互绳等
   description?: string;
   maxAthletes: number;    // 每队最多参赛人数
+  /** 每队最少参赛人数（0 或不填 = 不限制）。集体套路类项目有下限，如 6-12 人 / 9-18 人 */
+  minAthletes?: number;
   isIndividual: boolean;  // 是否单人项目（true=必须严格匹配组别，false=可跨低年龄组）
   orderIndex: number;     // 出场序号
   createdAt: string;
