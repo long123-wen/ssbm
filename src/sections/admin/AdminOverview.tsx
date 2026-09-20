@@ -10,6 +10,7 @@ import {
   teamProfileStore,
 } from '@/lib/store';
 import type { TeamProfile } from '@/types';
+import { evaluateDeadline } from '@/lib/deadline';
 
 interface OverviewStats {
   openCompetition: any;
@@ -251,6 +252,12 @@ interface OverviewHeaderProps {
 
 function OverviewHeader({ competition, togglingStatus, onToggleStatus }: OverviewHeaderProps) {
   if (!competition) return null;
+  // 展示态与截止时间联动：status=open 但已过报名截止 → 按「报名已截止」展示（DB 状态不变，仍可手动切换）
+  const deadlineDecision = evaluateDeadline({
+    status: competition.status,
+    registration_deadline: competition.registrationDeadline,
+  });
+  const effectivelyOpen = competition.status === 'open' && deadlineDecision.ok;
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-blue-950 p-6 text-white">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-500/10 via-transparent to-transparent" />
@@ -273,20 +280,21 @@ function OverviewHeader({ competition, togglingStatus, onToggleStatus }: Overvie
           onClick={onToggleStatus}
           disabled={togglingStatus}
           className={`shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border transition-all flex items-center gap-1.5 cursor-pointer ${
-            competition.status === 'open'
+            effectivelyOpen
               ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/30 border-emerald-400/30 hover:bg-emerald-500/30'
               : 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-400/30 border-amber-400/30 hover:bg-amber-500/30'
           } ${togglingStatus ? 'opacity-50 cursor-wait' : ''}`}
-          title={competition.status === 'open' ? '点击截止报名' : '点击开放报名'}
+          title={competition.status === 'open' ? (effectivelyOpen ? '点击截止报名' : '报名截止时间已过，点击可强制关闭') : '点击开放报名'}
         >
           {togglingStatus ? (
             <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-          ) : competition.status === 'open' ? (
+          ) : effectivelyOpen ? (
             <Unlock className="w-3.5 h-3.5" />
           ) : (
             <Lock className="w-3.5 h-3.5" />
           )}
-          {competition.status === 'open' ? '报名开放中' :
+          {effectivelyOpen ? '报名开放中' :
+           competition.status === 'open' ? '报名已截止（超过截止时间）' :
            competition.status === 'closed' ? '报名已截止' :
            competition.status === 'completed' ? '赛事已结束' :
            competition.status === 'draft' ? '草稿' : competition.status}

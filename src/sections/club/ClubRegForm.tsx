@@ -178,6 +178,9 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     };
   }, [deadlineDecision]);
 
+  // 截止/未开放后整页锁定：所有填报交互禁用（admin 解锁修改除外）
+  const deadlineBlocked = !!deadlineInfo && !deadlineInfo.ok && !adminEditUnlocked;
+
   useEffect(() => {
     setLoading(true);
     setSubmittedLocked(false);
@@ -378,13 +381,13 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
 
   // 从临时清单中删除
   const removeTempReg = (index: number) => {
-    if (submittedLocked && !adminEditUnlocked) return;
+    if ((submittedLocked && !adminEditUnlocked) || deadlineBlocked) return;
     setTempRegs(prev => prev.filter((_, i) => i !== index));
   };
 
   // 打开项目清单，不直接提交
   const openSubmissionReview = () => {
-    if (submittedLocked && !adminEditUnlocked) return;
+    if ((submittedLocked && !adminEditUnlocked) || deadlineBlocked) return;
     if (tempRegs.length === 0) return setError('报名清单为空');
     setError('');
     setFilledPanelOpen(true);
@@ -576,7 +579,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
   };
 
   const openReferenceEvent = (eventId: string) => {
-    if (submittedLocked && !adminEditUnlocked) return;
+    if ((submittedLocked && !adminEditUnlocked) || deadlineBlocked) return;
     const ev = events.find(e => e.id === eventId);
     if (!ev) return;
     setReferenceEventId(eventId);
@@ -588,7 +591,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
   };
 
   const toggleReferenceAthlete = (athleteId: string) => {
-    if (submittedLocked && !adminEditUnlocked) return;
+    if ((submittedLocked && !adminEditUnlocked) || deadlineBlocked) return;
     setReferenceAthleteIds(prev => {
       if (prev.includes(athleteId)) return prev.filter(id => id !== athleteId);
       if (isAthleteQuotaReached(athleteId)) return prev;
@@ -599,7 +602,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
   };
 
   const confirmReferenceAdd = () => {
-    if (submittedLocked && !adminEditUnlocked) return;
+    if ((submittedLocked && !adminEditUnlocked) || deadlineBlocked) return;
     if (!referenceEvent || !referenceSelectedGroup) return setError('请选择报名组别');
     if (!referenceAthleteIds.length) return setError('请选择报名队员');
     if (!adminEditUnlocked && isGroupFull(referenceSelectedGroup)) return setError('该报名组别已满，请选择其他组别');
@@ -723,7 +726,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
         <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2.5 text-amber-700 text-sm">
           <AlertCircle className="w-4 h-4 shrink-0" />
           请先在「团队管理」中添加运动员信息，再进行报名
-          <Button variant="outline" size="sm" onClick={() => !submittedLocked && setShowQuickAdd(true)} disabled={submittedLocked} className="ml-2 gap-1 text-blue-600 border-blue-200 hover:bg-blue-50">
+          <Button variant="outline" size="sm" onClick={() => !submittedLocked && !deadlineBlocked && setShowQuickAdd(true)} disabled={submittedLocked || deadlineBlocked} className="ml-2 gap-1 text-blue-600 border-blue-200 hover:bg-blue-50">
             <UserPlus className="w-3.5 h-3.5" />快速新建
           </Button>
         </div>
@@ -742,14 +745,14 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
           <RegFormStep1Team
             competitions={competitions}
             selCompId={selCompId}
-            onChangeSelCompId={(v) => { if (submittedLocked && !adminEditUnlocked) return; setSelCompId(v); setTempRegs([]); }}
-            disabled={submittedLocked && !adminEditUnlocked}
+            onChangeSelCompId={(v) => { if ((submittedLocked && !adminEditUnlocked) || deadlineBlocked) return; setSelCompId(v); setTempRegs([]); }}
+            disabled={(submittedLocked && !adminEditUnlocked) || deadlineBlocked}
             currentComp={currentComp}
             deadlineInfo={deadlineInfo}
             deadlineLabel={competitions.find(c => c.id === selCompId)?.registrationDeadline || ''}
           />
 
-          <Card className="bg-white border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden">
+          <Card className={`bg-white border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden ${deadlineBlocked ? 'pointer-events-none select-none opacity-70' : ''}`}>
             <CardContent className="p-4 sm:p-5 lg:p-6">
               {/* 参考流程：项目/组别列表 */}
               {currentStep === 'catalog' && (
@@ -764,7 +767,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
                   groupsMap={groupsMap}
                   isEventFull={isEventFull}
                   onPickEvent={openReferenceEvent}
-                  disabled={submittedLocked && !adminEditUnlocked}
+                  disabled={(submittedLocked && !adminEditUnlocked) || deadlineBlocked}
                 />
               )}
 
