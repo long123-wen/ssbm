@@ -8,6 +8,11 @@ out/
 release-*/
 dist-validation-*/
 dist.zip
+# deploy.mjs 构建前把旧 dist 改名留下的临时目录（文件被锁时删不掉）
+.dist_old_*/
+dist_trash*/
+dist_timing/
+dist_prev/
 
 # Generated / temp artifacts
 generated-avatars/
