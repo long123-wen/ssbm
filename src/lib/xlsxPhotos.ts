@@ -159,7 +159,8 @@ export async function extractSheetPhotos(file: File): Promise<Map<number, string
         const re = /<c\b[^>]*?r="([A-Z]+)(\d+)"[^>]*>(?:[\s\S]*?)<\/c>/g;
         let m: RegExpExecArray | null;
         while ((m = re.exec(sheetXml))) {
-          const imgId = /DISPIMG\("([^"]+)"/.exec(m[0])?.[1];
+          // WPS 实际写入的公式引号是 XML 转义的 &quot;（如 _xlfn.DISPIMG(&quot;ID_x&quot;,1)），兼容两种写法
+          const imgId = /DISPIMG\(\s*(?:&quot;|")([^"&]+?)(?:&quot;|")/.exec(m[0])?.[1];
           if (!imgId || !images[imgId]) continue;
           const row = Number(m[2]); // 1 基
           result.set(row - 1, images[imgId]); // 归一化为 0 基
