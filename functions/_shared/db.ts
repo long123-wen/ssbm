@@ -185,6 +185,12 @@ function validateRequest(body: DataQueryRequest): void {
   }
   if (body.single && body.single !== 'single' && body.single !== 'maybeSingle') throw new HttpError(400, 'Invalid single mode', 'INVALID_SINGLE');
   if (body.count && body.count !== 'exact') throw new HttpError(400, 'Only exact counts are supported', 'INVALID_COUNT');
+  // columns 必须是逗号分隔字符串（与前端 QueryBuilder.select(columns) 一致）。
+  // 缺失该校验时传入数组会在 selectedColumns() 里触发 columns.trim is not a
+  // function，被兜底成 500 INTERNAL_ERROR，误导排查。
+  if (body.columns !== undefined && typeof body.columns !== 'string') {
+    throw new HttpError(400, 'columns must be a comma-separated string', 'INVALID_COLUMNS');
+  }
 }
 
 function writableRow(
