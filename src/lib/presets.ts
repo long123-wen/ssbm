@@ -325,12 +325,14 @@ export const PRESET_EVENTS: PresetEvent[] = [
   { id: 'ev_33', name: '个人花样集体规定套路高级',          code: 'PR-E3',   category: '规定赛', subCategory: '个人花样集体规定套路', maxAthletes: 8, isIndividual: false },
 
   // ---- 6. 规定赛 > 车轮花样集体规定套路 ----
-  { id: 'ev_34', name: '车轮花样集体规定基础套路',          code: 'PR-W1',   category: '规定赛', subCategory: '车轮花样集体规定套路', maxAthletes: 2, isIndividual: false },
-  { id: 'ev_35', name: '车轮花样集体规定提高套路',          code: 'PR-W2',   category: '规定赛', subCategory: '车轮花样集体规定套路', maxAthletes: 2, isIndividual: false },
+  // 《全国跳绳竞赛规则》(三)：车轮花样集体规定套路 6-12 人，规定音乐
+  { id: 'ev_34', name: '车轮花样集体规定基础套路',          code: 'PR-W1',   category: '规定赛', subCategory: '车轮花样集体规定套路', maxAthletes: 12, isIndividual: false, description: '6-12 人，规定音乐' },
+  { id: 'ev_35', name: '车轮花样集体规定提高套路',          code: 'PR-W2',   category: '规定赛', subCategory: '车轮花样集体规定套路', maxAthletes: 12, isIndividual: false, description: '6-12 人，规定音乐' },
 
   // ---- 6. 规定赛 > 交互绳花样集体规定套路 ----
-  { id: 'ev_36', name: '交互绳花样集体规定基础套路',        code: 'PR-I1',   category: '规定赛', subCategory: '交互绳花样集体规定套路', maxAthletes: 4, isIndividual: false },
-  { id: 'ev_37', name: '交互绳花样集体规定提高套路',        code: 'PR-I2',   category: '规定赛', subCategory: '交互绳花样集体规定套路', maxAthletes: 4, isIndividual: false },
+  // 《全国跳绳竞赛规则》(四)：交互绳花样集体规定套路 9-18 人，规定音乐
+  { id: 'ev_36', name: '交互绳花样集体规定基础套路',        code: 'PR-I1',   category: '规定赛', subCategory: '交互绳花样集体规定套路', maxAthletes: 18, isIndividual: false, description: '9-18 人，规定音乐' },
+  { id: 'ev_37', name: '交互绳花样集体规定提高套路',        code: 'PR-I2',   category: '规定赛', subCategory: '交互绳花样集体规定套路', maxAthletes: 18, isIndividual: false, description: '9-18 人，规定音乐' },
 ];
 
 // ========================
