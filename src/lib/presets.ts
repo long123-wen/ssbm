@@ -307,11 +307,11 @@ export const PRESET_EVENTS: PresetEvent[] = [
   // ---- 2. 花样赛 > 两人车轮花样 ----
   { id: 'ev_22', name: '两人中国轮花样赛',               code: 'CF-2',  category: '花样赛', subCategory: '两人车轮花样', maxAthletes: 2, isIndividual: false },
 
-  // ---- 3. 民族跳绳操项目 ----
-  { id: 'ev_23', name: '民族跳绳操规定套路一级',          code: 'ND-1',  category: '民族跳绳操', subCategory: '规定套路', maxAthletes: 16, isIndividual: false, description: '90~120秒，8-16人' },
-  { id: 'ev_24', name: '民族跳绳操规定套路二级',          code: 'ND-2',  category: '民族跳绳操', subCategory: '规定套路', maxAthletes: 16, isIndividual: false, description: '90~120秒，8-16人' },
-  { id: 'ev_25', name: '民族跳绳操规定套路三级',          code: 'ND-3',  category: '民族跳绳操', subCategory: '规定套路', maxAthletes: 16, isIndividual: false, description: '90~120秒，8-16人' },
-  { id: 'ev_26', name: '民族跳绳操自编套路',              code: 'NF-C',  category: '民族跳绳操', subCategory: '自编套路', maxAthletes: 16, isIndividual: false, description: '4~8分钟，8-16人' },
+  // ---- 3. 民族跳绳操项目（均为 8-16 人）----
+  { id: 'ev_23', name: '民族跳绳操规定套路一级',          code: 'ND-1',  category: '民族跳绳操', subCategory: '规定套路', minAthletes: 8, maxAthletes: 16, isIndividual: false, description: '90~120秒，8-16人' },
+  { id: 'ev_24', name: '民族跳绳操规定套路二级',          code: 'ND-2',  category: '民族跳绳操', subCategory: '规定套路', minAthletes: 8, maxAthletes: 16, isIndividual: false, description: '90~120秒，8-16人' },
+  { id: 'ev_25', name: '民族跳绳操规定套路三级',          code: 'ND-3',  category: '民族跳绳操', subCategory: '规定套路', minAthletes: 8, maxAthletes: 16, isIndividual: false, description: '90~120秒，8-16人' },
+  { id: 'ev_26', name: '民族跳绳操自编套路',              code: 'NF-C',  category: '民族跳绳操', subCategory: '自编套路', minAthletes: 8, maxAthletes: 16, isIndividual: false, description: '4~8分钟，8-16人' },
 
   // ---- 4. 亲子赛 ----
   { id: 'ev_27', name: '30秒两人一单一摇跳',              code: 'PR-1S30',  category: '亲子赛', subCategory: '亲子速度', maxAthletes: 2, isIndividual: false },
