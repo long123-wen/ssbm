@@ -63,3 +63,4 @@ supabase/.temp/
 # 临时查询输出与本地辅助文件
 scripts/.d1-*.json
 重新登录Cloudflare.bat
+_wtest.txt
