@@ -11,6 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { competitionStore } from '@/lib/store';
+import { formatDeadlineValue, toDatetimeLocalValue } from '@/lib/deadline';
 import type { Competition, RegistrationStatus } from '@/types';
 
 const statusMap: Record<RegistrationStatus, { label: string; color: string }> = {
@@ -36,7 +37,7 @@ export default function AdminCompetitions({ activeComp }: { activeComp?: Competi
   useEffect(() => { load(); }, []);
 
   const handleOpen = (comp?: Competition) => {
-    if (comp) { setEditId(comp.id); setForm({ ...comp }); }
+    if (comp) { setEditId(comp.id); setForm({ ...comp, registrationDeadline: toDatetimeLocalValue(comp.registrationDeadline) }); }
     else { setEditId(null); setForm({ ...emptyForm }); }
     setOpen(true);
   };
@@ -112,7 +113,7 @@ export default function AdminCompetitions({ activeComp }: { activeComp?: Competi
                         </span>
                         <span className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-amber-400" />
-                          报名截止：{comp.registrationDeadline}
+                          报名截止：{formatDeadlineValue(comp.registrationDeadline)}
                         </span>
                         {(comp.maxIndividualEvents || comp.maxTeamEvents) && (
                           <span className="flex items-center gap-1.5 text-purple-500">
@@ -168,8 +169,8 @@ export default function AdminCompetitions({ activeComp }: { activeComp?: Competi
                 </div>
               </div>
               <div>
-                <Label>报名截止日期</Label>
-                <Input className="mt-1" type="date" value={form.registrationDeadline} onChange={e => f('registrationDeadline', e.target.value)} />
+                <Label>报名截止时间</Label>
+                <Input className="mt-1" type="datetime-local" value={form.registrationDeadline} onChange={e => f('registrationDeadline', e.target.value)} />
               </div>
               <div>
                 <Label>赛事状态</Label>

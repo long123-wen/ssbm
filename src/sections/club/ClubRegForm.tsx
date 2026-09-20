@@ -15,7 +15,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { validateIdCard, extractBirthDate, extractGender } from '@/lib/idCardValidator';
 import { isGroupEligible } from '@/lib/groupMatcher';
-import { evaluateDeadline, formatDeadlineRemaining, isCompetitionRegOpen } from '@/lib/deadline';
+import { evaluateDeadline, formatDeadlineRemaining, formatDeadlineValue, isCompetitionRegOpen } from '@/lib/deadline';
 import type { Competition, Event, EventGroup, Athlete, ClubAccount } from '@/types';
 
 interface Props { club: ClubAccount; competitionId: string; teamProfileId: string }
@@ -750,7 +750,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
             disabled={(submittedLocked && !adminEditUnlocked) || deadlineBlocked}
             currentComp={currentComp}
             deadlineInfo={deadlineInfo}
-            deadlineLabel={competitions.find(c => c.id === selCompId)?.registrationDeadline || ''}
+            deadlineLabel={formatDeadlineValue(competitions.find(c => c.id === selCompId)?.registrationDeadline)}
           />
 
           <Card className={`bg-white border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden ${deadlineBlocked ? 'pointer-events-none select-none opacity-70' : ''}`}>
@@ -822,7 +822,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
         submittedLocked={submittedLocked}
         adminEditUnlocked={adminEditUnlocked}
         deadlineInfo={deadlineInfo}
-        deadlineLabel={competitions.find(c => c.id === selCompId)?.registrationDeadline || ''}
+        deadlineLabel={formatDeadlineValue(competitions.find(c => c.id === selCompId)?.registrationDeadline)}
         submitting={submitting}
         onRemoveItem={removeTempReg}
         onSubmit={submitAll}

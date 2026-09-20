@@ -50,11 +50,8 @@ export function evaluateDeadline(
     return { ok: true, reason: 'OK', remaining_ms: null, level: 'safe', deadlineAt: null };
   }
   const raw = row.registration_deadline;
-  if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    return { ok: true, remaining_ms: null, level: 'safe', deadlineAt: null };
-  }
-  const deadlineAt = new Date(`${raw}T23:59:59.999Z`);
-  if (Number.isNaN(deadlineAt.getTime())) {
+  const deadlineAt = parseDeadlineAt(raw);
+  if (!deadlineAt) {
     return { ok: true, remaining_ms: null, level: 'safe', deadlineAt: null };
   }
   const remaining_ms = deadlineAt.getTime() - now.getTime();
@@ -67,6 +64,24 @@ export function evaluateDeadline(
   const level: DeadlineDecision['level'] =
     remaining_ms > THREE_DAYS ? 'safe' : remaining_ms > ONE_DAY ? 'warning' : 'urgent';
   return { ok: true, remaining_ms, level, deadlineAt };
+}
+
+/**
+ * 解析截止时间存储值，统一按北京时间（UTC+8）解释（与前端 src/lib/deadline.ts 一致）：
+ *  - 'YYYY-MM-DD'            → 当日 23:59:59.999（北京时间）
+ *  - 'YYYY-MM-DDTHH:mm[:ss]' → 该时刻（北京时间，管理端 datetime-local 值）
+ *  - 其他/null/非法          → null（不做时间校验）
+ */
+export function parseDeadlineAt(raw: unknown): Date | null {
+  if (typeof raw !== 'string') return null;
+  const m = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(raw.trim());
+  if (!m) return null;
+  const [, date, hh, mm, ss] = m;
+  const time = hh && mm
+    ? `${hh}:${mm}:${ss ?? '00'}.000`
+    : '23:59:59.999';
+  const at = new Date(`${date}T${time}+08:00`);
+  return Number.isNaN(at.getTime()) ? null : at;
 }
 
 /**

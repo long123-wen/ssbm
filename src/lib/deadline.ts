@@ -30,6 +30,39 @@ const ONE_DAY = 24 * 60 * 60 * 1000;
 const THREE_DAYS = 3 * ONE_DAY;
 
 /**
+ * 解析截止时间值（存储格式），统一按北京时间（UTC+8）解释：
+ *  - 'YYYY-MM-DD'               → 当日 23:59:59.999（北京时间）
+ *  - 'YYYY-MM-DDTHH:mm[:ss]'    → 该时刻（北京时间，datetime-local 值）
+ *  - 其他/null/非法             → null（不做时间校验）
+ */
+export function parseDeadlineAt(raw: unknown): Date | null {
+  if (typeof raw !== 'string') return null;
+  const m = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(raw.trim());
+  if (!m) return null;
+  const [, date, hh, mm, ss] = m;
+  const time = hh && mm
+    ? `${hh}:${mm}:${ss ?? '00'}.000`
+    : '23:59:59.999';
+  const at = new Date(`${date}T${time}+08:00`);
+  return Number.isNaN(at.getTime()) ? null : at;
+}
+
+/** 存储值 → 用户可读显示（'2026-09-19T18:00' → '2026-09-19 18:00'；日期保持原样） */
+export function formatDeadlineValue(raw: string | null | undefined): string {
+  if (!raw) return '';
+  const m = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::\d{2})?$/.exec(raw.trim());
+  if (m) return `${m[1]} ${m[2]}`;
+  return raw;
+}
+
+/** 存储值 → datetime-local 输入框值（'YYYY-MM-DD' → 'YYYY-MM-DDT23:59'，其余原样） */
+export function toDatetimeLocalValue(raw: string | null | undefined): string {
+  if (!raw) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) return `${raw.trim()}T23:59`;
+  return raw.trim();
+}
+
+/**
  * 仅返回判定结果，不抛错。
  * @param row  包含 status 与 registration_deadline 的对象
  * @param now  可选测试用当前时间，默认 new Date()
@@ -61,18 +94,8 @@ export function evaluateDeadline(
     };
   }
   const raw = row.registration_deadline;
-  if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    return {
-      ok: true,
-      reason: null,
-      remaining_ms: null,
-      level: 'safe',
-      deadlineAt: null,
-      message: null,
-    };
-  }
-  const deadlineAt = new Date(`${raw}T23:59:59.999Z`);
-  if (Number.isNaN(deadlineAt.getTime())) {
+  const deadlineAt = parseDeadlineAt(raw);
+  if (!deadlineAt) {
     return {
       ok: true,
       reason: null,
