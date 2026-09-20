@@ -78,7 +78,13 @@ export function calcAge(birthDate: string, competitionDate: string): number {
  * 判断某个 EventGroup（数据库中的分组）是否对指定运动员开放
  * 依据：ageMin/ageMax/gender 字段
  *
+ * 跨组别规则（2026-09-20 修订）：
+ *  - **个人项目（1 人）：不允许跨组别**，出生日期必须精确落在该组区间内（该哪个组就是哪个组）
+ *  - 2 人及以上项目：允许跨组别，沿用「报高不报低」（可升组，禁止降组）
+ *  - 5 人及以上大集体：不设年龄分组，自由组队
+ *
  * @param maxAthletes 项目每队最多人数；>= 5 视为大集体，跳过年龄校验
+ * @param isIndividual 是否单人项目；为 true 时严格匹配本组，不允许升/降组
  */
 export function isGroupEligible(
   group: { ageMin?: number; ageMax?: number; gender?: string },
@@ -86,10 +92,16 @@ export function isGroupEligible(
   gender: 'male' | 'female',
   competitionDate: string,
   maxAthletes?: number,
+  isIndividual?: boolean,
 ): boolean {
   // 大集体（5 人及以上）：不设年龄分组，自由组队
-  if (isBigTeamEvent(maxAthletes)) {
+  if (!isIndividual && isBigTeamEvent(maxAthletes)) {
     return isGenderEligible(group, gender);
+  }
+  // 个人项目：不可跨组别 —— 出生日期必须精确落在该组区间
+  if (isIndividual) {
+    if (!isGenderEligible(group, gender)) return false;
+    return isBirthInGroupRange(group, birthDate, competitionDate);
   }
   return canEnterGroup(group, birthDate, gender, competitionDate);
 }
@@ -236,7 +248,11 @@ export function getAvailablePresetGroups(
   if (!isIndividual && isBigTeamEvent(maxAthletes)) {
     return PRESET_COMBINED_GROUPS.filter((cg) => cg.gender === gender || cg.gender === undefined);
   }
-  // 个人项目、2-4 人小集体：报高不报低
+  // 个人项目：不可跨组别 —— 只返回运动员本组
+  if (isIndividual) {
+    return getExactPresetGroups(birthDate, gender, competitionDate);
+  }
+  // 2 人及以上小集体：报高不报低
   return getCrossPresetGroups(birthDate, gender, competitionDate);
 }
 
@@ -264,12 +280,15 @@ export function filterEligibleGroups(
   competitionDate: string,
   maxAthletes?: number,
 ): { id: string; name: string; ageMin?: number; ageMax?: number; gender?: string }[] {
-  if (athletes.length === 0) return groups; // 未选运动员，显示全部
+  if (athletes.length === 0) {
+    // 个人项目：未选运动员时也不能跨组，只能给出"本组"的组别（按首位运动员为空无法判定，交由调用方处理）
+    return groups;
+  }
 
   return groups.filter((group) => {
     // 所有已选运动员都必须符合该分组要求
     return athletes.every((ath) =>
-      isGroupEligible(group, ath.birthDate, ath.gender, competitionDate, maxAthletes),
+      isGroupEligible(group, ath.birthDate, ath.gender, competitionDate, maxAthletes, isIndividual),
     );
   });
 }
@@ -329,7 +348,40 @@ export function validateGroupRegistration(
     };
   }
 
-  // 个人项目 / 小集体：报高不报低（按出生日期范围判定）
+  // 个人项目：不可跨组别，出生日期必须精确落在该组区间内
+  if (isIndividual) {
+    if (!isValidISODate(birthDate)) {
+      return {
+        valid: false,
+        message: `出生日期格式无效（${JSON.stringify(birthDate)}），无法校验分组`,
+        suggestedNames: [],
+      };
+    }
+    if (!isGenderEligible(registeredGroup, gender)) {
+      return {
+        valid: false,
+        message: `性别不符！该运动员为${genderText}，当前选择的是「${registeredGroup.name}」`,
+        suggestedNames: [],
+      };
+    }
+    if (isBirthInGroupRange(registeredGroup, birthDate, competitionDate)) {
+      return {
+        valid: true,
+        isCross: false,
+        message: `分组正确（${birthDate} 出生，精确匹配 ${registeredGroup.name}）`,
+        suggestedNames: [registeredGroup.name],
+      };
+    }
+    const own = getExactPresetGroups(birthDate, gender, competitionDate);
+    return {
+      valid: false,
+      isCross: true,
+      message: `个人项目不允许跨组别报名！该运动员（${birthDate} 出生/${genderText}）应报 ${own.map((g) => `「${g.name}」`).join('、') || '其对应组别'}，当前选择的是「${registeredGroup.name}」`,
+      suggestedNames: own.map((g) => g.name),
+    };
+  }
+
+  // 2 人及以上小集体：报高不报低（按出生日期范围判定）
   if (!isValidISODate(birthDate)) {
     return {
       valid: false,

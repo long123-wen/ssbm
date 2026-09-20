@@ -830,13 +830,21 @@ console.log('\n=== 12. validateGroupRegistration 审核 ===');
   );
   assertTrue(r1.valid && !r1.isCross, '审核：完全匹配 valid+!isCross');
 
-  // 升组
+  // 个人项目升组：2026-09-20 新规则 —— 个人项目不允许跨组别，应拒绝
   const r2 = validateGroupRegistration(
     '2016-05-15', 'male',
     { name: '少年甲组男子组', ageMin: 13, ageMax: 15, gender: 'male' },
     true, COMPETITION_DATE, 1,
   );
-  assertTrue(r2.valid && r2.isCross === true, '审核：升组 valid+isCross');
+  assertTrue(!r2.valid && r2.isCross === true, '审核：个人项目升组应拒（不可跨组别）');
+
+  // 多人项目（2 人）升组：允许，valid + isCross
+  const r2b = validateGroupRegistration(
+    '2016-05-15', 'male',
+    { name: '少年甲组男子组', ageMin: 13, ageMax: 15, gender: 'male' },
+    false, COMPETITION_DATE, 2,
+  );
+  assertTrue(r2b.valid && r2b.isCross === true, '审核：多人项目升组 valid+isCross');
 
   // 降组
   const r3 = validateGroupRegistration(

@@ -526,8 +526,11 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
   const referenceMaxAthletes = referenceEvent?.isIndividual === false ? (referenceEvent.maxAthletes || 1) : 1;
 
   // 正确的筛选方向：先选定分组，再按该分组过滤运动员。
-  // 规则：个人项目与 2-4 人小集体「报高不报低」（年龄 ≤ 该组上限）；
-  //      5 人及以上大集体不设年龄分组（自由组队，只校验性别）。
+  // 规则（2026-09-20 修订）：
+  //  - 个人项目（1 人）：**不允许跨组别**，只显示出生日期精确落在该组区间的运动员
+  //  - 2 人及以上项目：允许跨组别，沿用「报高不报低」
+  //  - 5 人及以上大集体：不设年龄分组，自由组队（只校验性别）
+  const referenceIsIndividual = referenceEvent ? referenceEvent.isIndividual !== false : true;
   const referenceEligibleAthletes = useMemo(() => {
     if (!referenceEvent || !referenceSelectedGroup) return [];
     return athletes.filter(athlete =>
@@ -537,9 +540,10 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
         athlete.gender as 'male' | 'female',
         compDate,
         referenceMaxAthletes,
+        referenceIsIndividual,
       ),
     );
-  }, [referenceEvent, referenceSelectedGroup, athletes, compDate, referenceMaxAthletes]);
+  }, [referenceEvent, referenceSelectedGroup, athletes, compDate, referenceMaxAthletes, referenceIsIndividual]);
 
   // 切换分组后，清除不再符合新分组的已选运动员。
   useEffect(() => {

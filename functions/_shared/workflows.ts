@@ -142,6 +142,14 @@ function birthStartOf(group: Row, startDate: string): string {
   return `${year - ageMax}-01-01`;
 }
 
+/** 年龄组的出生日期结束日：出生年份 = 赛事年份 − age_min，取该年 12 月 31 日 */
+function birthEndOf(group: Row, startDate: string): string {
+  const year = startDate ? new Date(startDate).getFullYear() : new Date().getFullYear();
+  const ageMin = group.age_min === null || group.age_min === undefined ? null : Number(group.age_min);
+  if (ageMin === null || !Number.isFinite(ageMin)) return `${year}-12-31`;
+  return `${year - ageMin}-12-31`;
+}
+
 function assertEligible(group: Row, athlete: Row, startDate: string, isIndividual: boolean): void {
   if (group.group_gender && group.group_gender !== 'mixed' && athlete.gender !== group.group_gender) throw new HttpError(422, 'Athlete gender is not eligible for this group', 'ATHLETE_INELIGIBLE');
   // 大集体（5 人及以上）：不设年龄分组，自由组队，跳过年龄校验
@@ -156,6 +164,13 @@ function assertEligible(group: Row, athlete: Row, startDate: string, isIndividua
   const start = birthStartOf(group, startDate);
   if (birthDate < start) {
     throw new HttpError(422, `Athlete birth date ${birthDate} is earlier than this group start date ${start} (only entering an older age group is allowed)`, 'ATHLETE_INELIGIBLE');
+  }
+  // 个人项目：不允许跨组别报名（2026-09-20 规则）—— 出生日期不得晚于该组结束日
+  if (isIndividual) {
+    const end = birthEndOf(group, startDate);
+    if (birthDate > end) {
+      throw new HttpError(422, `Individual events do not allow cross-group registration: athlete birth date ${birthDate} is later than this group end date ${end}`, 'ATHLETE_INELIGIBLE');
+    }
   }
 }
 async function assertLimits(env: Env, input: ClubRegistrationInput, event: Row, clubId: string, excludeRegistrationIds: string[] = []): Promise<void> {
