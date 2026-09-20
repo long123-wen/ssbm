@@ -297,9 +297,9 @@ export const PRESET_EVENTS: PresetEvent[] = [
   { id: 'ev_17', name: '1分钟10人长绳"8"字跳',           code: 'LR8-C60',   category: '计数赛', subCategory: '集体速度赛', maxAthletes: 10, isIndividual: false },
 
   // ---- 2. 花样赛 > 个人花样 ----
-  { id: 'ev_18', name: '民族个人花样步法高（一级）',     code: 'MF-1',  category: '花样赛', subCategory: '个人花样', maxAthletes: 1, isIndividual: true },
-  { id: 'ev_19', name: '民族个人花样步法高（二级）',     code: 'MF-2',  category: '花样赛', subCategory: '个人花样', maxAthletes: 1, isIndividual: true },
-  { id: 'ev_20', name: '民族个人花样步法高（三级）',     code: 'MF-3',  category: '花样赛', subCategory: '个人花样', maxAthletes: 1, isIndividual: true },
+  { id: 'ev_18', name: '民族个人花样步步高（一级）',     code: 'MF-1',  category: '花样赛', subCategory: '个人花样', maxAthletes: 1, isIndividual: true },
+  { id: 'ev_19', name: '民族个人花样步步高（二级）',     code: 'MF-2',  category: '花样赛', subCategory: '个人花样', maxAthletes: 1, isIndividual: true },
+  { id: 'ev_20', name: '民族个人花样步步高（三级）',     code: 'MF-3',  category: '花样赛', subCategory: '个人花样', maxAthletes: 1, isIndividual: true },
   { id: 'ev_21', name: '个人花样自编',                   code: 'FS-C',  category: '花样赛', subCategory: '个人花样', maxAthletes: 1, isIndividual: true, description: '自编套路' },
 
   // ---- 2. 花样赛 > 两人车轮花样 ----

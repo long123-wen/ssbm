@@ -20,10 +20,11 @@ import {
 } from './_shared/workflows';
 import {
   audit,
-  clearSessionCookie,
+  clearSessionCookies,
   createSession,
   getSession,
   loadSessionUser,
+  portalPreference,
   requireSession,
   revokeCurrentSession,
   resetAdminPassword,
@@ -107,14 +108,14 @@ async function login(
   waitUntil(audit(env, id, request, { role, userId: String(user.id), sessionId: '', expiresAt: '', ...(mustResetPassword ? { mustResetPassword: true } : {}) }, 'auth.login', table, String(user.id)));
   waitUntil(clearAuthFailures(env, request, 'login', { username }));
   return jsonResponse(request, env, id, { data: { role, user: safeUser, must_reset_password: mustResetPassword }, error: null }, 200, {
-    'Set-Cookie': sessionCookie(token, env),
+    'Set-Cookie': sessionCookie(token, env, role),
   });
 }
 
 async function logout(request: Request, env: Env, id: string): Promise<Response> {
   assertMethod(request, 'POST');
   await revokeCurrentSession(request, env);
-  return jsonResponse(request, env, id, { data: null, error: null }, 200, { 'Set-Cookie': clearSessionCookie() });
+  return jsonResponse(request, env, id, { data: null, error: null }, 200, clearSessionCookies());
 }
 
 async function resetPassword(request: Request, env: Env, id: string): Promise<Response> {
@@ -133,7 +134,7 @@ async function resetPassword(request: Request, env: Env, id: string): Promise<Re
 
 async function sessionInfo(request: Request, env: Env, id: string): Promise<Response> {
   assertMethod(request, 'GET');
-  const session = await getSession(request, env);
+  const session = await getSession(request, env, portalPreference(request));
   if (!session) return jsonResponse(request, env, id, { data: null, error: null }, 200);
   const user = await loadSessionUser(env, session);
   if (!user) throw new HttpError(401, 'Session user no longer exists', 'INVALID_SESSION');
@@ -239,7 +240,7 @@ async function dataQuery(
   waitUntil: (promise: Promise<unknown>) => void,
 ): Promise<Response> {
   assertMethod(request, 'POST');
-  const session = await getSession(request, env);
+  const session = await getSession(request, env, portalPreference(request));
   // 强制改密期间，管理员只允许访问改密与登出端点；通用数据 API 一律拒绝。
   if (session?.mustResetPassword) {
     throw new HttpError(403, 'Password reset is required before continuing', 'PASSWORD_RESET_REQUIRED');

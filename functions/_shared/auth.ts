@@ -1,7 +1,15 @@
 import type { Env, Row, SessionPrincipal } from './types';
 import { HttpError } from './http';
 
-const COOKIE_NAME = '__Host-rj_session';
+// Role-scoped cookies: admin and club sessions live in SEPARATE cookies so
+// that logging into one portal never overwrites the other. Previously a single
+// shared cookie meant a club login (e.g. in another tab) silently destroyed
+// the admin session, surfacing as random 403 FORBIDDEN in the admin console.
+const LEGACY_COOKIE_NAME = '__Host-rj_session';
+const ROLE_COOKIE_NAME: Record<'admin' | 'club', string> = {
+  admin: '__Host-rj_admin_session',
+  club: '__Host-rj_club_session',
+};
 const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const HEX_64 = /^[a-f0-9]{64}$/i;
 const PBKDF2_PREFIX = 'pbkdf2$';
@@ -83,12 +91,16 @@ function ttlSeconds(env: Env): number {
     : DEFAULT_SESSION_TTL_SECONDS;
 }
 
-export function sessionCookie(token: string, env: Env): string {
-  return `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${ttlSeconds(env)}`;
+export function sessionCookie(token: string, env: Env, role: 'admin' | 'club'): string {
+  return `${ROLE_COOKIE_NAME[role]}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${ttlSeconds(env)}`;
 }
 
-export function clearSessionCookie(): string {
-  return `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
+/** Clear every possible session cookie (both roles + legacy shared cookie). */
+export function clearSessionCookies(): [string, string][] {
+  return [ROLE_COOKIE_NAME.admin, ROLE_COOKIE_NAME.club, LEGACY_COOKIE_NAME].map(name => [
+    'Set-Cookie',
+    `${name}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`,
+  ]);
 }
 
 export async function createSession(env: Env, role: 'admin' | 'club', userId: string, request: Request): Promise<string> {
@@ -113,16 +125,71 @@ export async function createSession(env: Env, role: 'admin' | 'club', userId: st
   return token;
 }
 
-export async function getSession(request: Request, env: Env): Promise<SessionPrincipal | null> {
-  const token = parseCookies(request)[COOKIE_NAME];
-  if (!token || !/^[a-f0-9]{64}$/i.test(token)) return null;
-  const tokenHash = await sha256(token);
+type CookieRole = 'admin' | 'club' | 'legacy';
+
+function candidateTokens(request: Request): Array<{ cookieRole: CookieRole; token: string }> {
+  const cookies = parseCookies(request);
+  const candidates: Array<{ cookieRole: CookieRole; token: string }> = [];
+  for (const role of ['admin', 'club'] as const) {
+    const token = cookies[ROLE_COOKIE_NAME[role]];
+    if (token && HEX_64.test(token)) candidates.push({ cookieRole: role, token });
+  }
+  const legacy = cookies[LEGACY_COOKIE_NAME];
+  if (legacy && HEX_64.test(legacy)) candidates.push({ cookieRole: 'legacy', token: legacy });
+  return candidates;
+}
+
+/**
+ * FE 门户标识头：admin 端 / club 端各自声明身份，双会话并存时用于消歧。
+ */
+export function portalPreference(request: Request): 'admin' | 'club' | undefined {
+  const raw = (request.headers.get('X-RJ-Portal') || '').toLowerCase();
+  return raw === 'admin' || raw === 'club' ? raw : undefined;
+}
+
+/**
+ * Resolve the current session from any of the role-scoped cookies.
+ *
+ * With `prefer` (from requireSession's role list or the X-RJ-Portal header),
+ * only sessions from the matching role cookie (plus the legacy shared cookie)
+ * are considered — a wrong-role session yields null (→ 401) instead of a
+ * misleading 403 INSUFFICIENT_PERMISSIONS.
+ *
+ * Without a preference (generic data API), all candidates compete and the
+ * most recently used session wins — this keeps both portals usable side by
+ * side in the same browser.
+ */
+export async function getSession(request: Request, env: Env, prefer?: 'admin' | 'club'): Promise<SessionPrincipal | null> {
+  const candidates = candidateTokens(request);
+  if (!candidates.length) return null;
   const now = new Date().toISOString();
-  const row = await env.REGISTRATION_DB.prepare(
-    `SELECT id, user_type, user_id, expires_at FROM sessions
-     WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > ? LIMIT 1`,
-  ).bind(tokenHash, now).first<Row>();
-  if (!row || (row.user_type !== 'admin' && row.user_type !== 'club')) return null;
+  const hashes = await Promise.all(candidates.map(c => sha256(c.token)));
+  const byHash = new Map<string, CookieRole>();
+  candidates.forEach((c, i) => byHash.set(hashes[i], c.cookieRole));
+
+  const placeholders = hashes.map(() => '?').join(',');
+  const { results } = await env.REGISTRATION_DB.prepare(
+    `SELECT id, token_hash, user_type, user_id, expires_at, last_seen_at FROM sessions
+     WHERE token_hash IN (${placeholders}) AND revoked_at IS NULL AND expires_at > ?`,
+  ).bind(...hashes, now).all<Row>();
+  const rows = (results || []) as Array<Record<string, unknown>>;
+  if (!rows.length) return null;
+
+  let pool = rows;
+  if (prefer) {
+    const filtered = rows.filter(row => {
+      const cookieRole = byHash.get(String(row.token_hash));
+      return cookieRole === prefer || cookieRole === 'legacy';
+    });
+    // 只有当过滤结果里确实存在 prefer 角色的会话时才收窄；否则保留全部候选，
+    // 让下面的角色校验（user_type）兜底，避免 legacy cookie 角色不符时误判。
+    if (filtered.some(row => row.user_type === prefer)) pool = filtered;
+  }
+  // 双会话并存时，取最近活跃的那个（当前正在使用的门户）
+  pool.sort((a, b) => String(b.last_seen_at || '').localeCompare(String(a.last_seen_at || '')));
+  const row = pool[0];
+
+  if (row.user_type !== 'admin' && row.user_type !== 'club') return null;
 
   let mustResetPassword = false;
   if (row.user_type === 'admin') {
@@ -154,7 +221,12 @@ export async function requireSession(
   roles: Array<'admin' | 'club'> = ['admin', 'club'],
   allowPasswordReset = false,
 ): Promise<SessionPrincipal> {
-  const session = await getSession(request, env);
+  const prefer = roles.includes('admin') && !roles.includes('club')
+    ? 'admin'
+    : roles.includes('club') && !roles.includes('admin')
+      ? 'club'
+      : undefined;
+  const session = await getSession(request, env, prefer);
   if (!session) throw new HttpError(401, 'Authentication required', 'UNAUTHENTICATED');
   if (!roles.includes(session.role)) throw new HttpError(403, 'Insufficient permissions', 'FORBIDDEN');
   if (session.mustResetPassword && !allowPasswordReset) {
@@ -164,10 +236,13 @@ export async function requireSession(
 }
 
 export async function revokeCurrentSession(request: Request, env: Env): Promise<void> {
-  const token = parseCookies(request)[COOKIE_NAME];
-  if (!token || !/^[a-f0-9]{64}$/i.test(token)) return;
-  await env.REGISTRATION_DB.prepare('UPDATE sessions SET revoked_at = ? WHERE token_hash = ? AND revoked_at IS NULL')
-    .bind(new Date().toISOString(), await sha256(token)).run();
+  const candidates = candidateTokens(request);
+  if (!candidates.length) return;
+  const hashes = await Promise.all(candidates.map(c => sha256(c.token)));
+  const placeholders = hashes.map(() => '?').join(',');
+  await env.REGISTRATION_DB.prepare(
+    `UPDATE sessions SET revoked_at = ? WHERE token_hash IN (${placeholders}) AND revoked_at IS NULL`,
+  ).bind(new Date().toISOString(), ...hashes).run();
 }
 
 export function stripSecrets(row: Row | null): Row | null {
