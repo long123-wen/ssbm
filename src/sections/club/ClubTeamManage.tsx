@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { leaderStore, coachStore, athleteStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { validateIdCard, extractBirthDate, extractGender } from '@/lib/idCardValidator';
+import { extractSheetPhotos } from '@/lib/xlsxPhotos';
 import type { TeamLeader, Coach, Athlete } from '@/types';
 import * as XLSX from 'xlsx';
 
@@ -52,6 +53,9 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
   const [batchHeaders, setBatchHeaders] = useState<string[]>([]);
   const [batchImporting, setBatchImporting] = useState(false);
   const [batchResult, setBatchResult] = useState<{ success: number; photoUploaded: number; photoSkipped: number; errors: string[] } | null>(null);
+  const [batchPhotoMap, setBatchPhotoMap] = useState<Map<number, string>>(new Map());
+  const [batchRowIndex, setBatchRowIndex] = useState<number[]>([]);
+  const [batchPhotoLoading, setBatchPhotoLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 按赛事+俱乐部+队伍三维度加载数据（多队伍数据隔离）
@@ -356,6 +360,29 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
           setBatchHeaders(Object.keys(jsonData[0]));
           setBatchData(jsonData);
           setBatchResult(null);
+          setBatchPhotoLoading(true);
+          // 建立 jsonData 行 → 工作表行号(0 基) 的映射（用于匹配单元格内的嵌入图片）
+          const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null }) as any[][];
+          const header: any[] = rawRows[0] || [];
+          const nameCol = header.findIndex(h => String(h || '').trim() === '姓名');
+          const idCol = header.findIndex(h => String(h || '').trim() === '身份证号');
+          const rowsIdx = jsonData.map(row => {
+            const n = String(row['姓名'] || '').trim();
+            const idc = String(row['身份证号'] || '').trim();
+            for (let k = 1; k < rawRows.length; k++) {
+              const rn = nameCol >= 0 ? String(rawRows[k]?.[nameCol] ?? '').trim() : '';
+              const ri = idCol >= 0 ? String(rawRows[k]?.[idCol] ?? '').trim() : '';
+              if ((idc && ri && ri === idc) || (n && rn && rn === n)) return k;
+            }
+            return -1;
+          });
+          setBatchRowIndex(rowsIdx);
+          extractSheetPhotos(file).then(map => {
+            setBatchPhotoMap(map);
+            setBatchPhotoLoading(false);
+            const count = rowsIdx.filter(r => r >= 0 && map.has(r)).length;
+            if (count > 0) toast.success(`识别到 ${count} 张单元格内图片`);
+          }).catch(() => setBatchPhotoLoading(false));
         } else {
           toast.error('文件中没有数据');
         }
@@ -378,7 +405,10 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
       try {
         const name = String(row['姓名'] || '').trim();
         if (!name) { errors.push(`第${i + 2}行：缺少姓名`); continue; }
-        const photo = extractPhotoDataUrl(row['照片']);
+        // 照片优先取「单元格内嵌入的图片」，其次取「照片」列里的 base64
+        const sheetRow = batchRowIndex[i];
+        const embedded = sheetRow !== undefined && sheetRow >= 0 ? batchPhotoMap.get(sheetRow) : undefined;
+        const photo = embedded || extractPhotoDataUrl(row['照片']);
         inputs.push({
           rowIndex: i,
           data: {
@@ -460,6 +490,9 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
     setBatchData([]);
     setBatchHeaders([]);
     setBatchResult(null);
+    setBatchPhotoMap(new Map());
+    setBatchRowIndex([]);
+    setBatchPhotoLoading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
