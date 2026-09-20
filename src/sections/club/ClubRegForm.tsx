@@ -15,6 +15,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { validateIdCard, extractBirthDate, extractGender } from '@/lib/idCardValidator';
 import { isGroupEligible } from '@/lib/groupMatcher';
+import { CenterAlert } from '@/components/CenterAlert';
 import { evaluateDeadline, formatDeadlineRemaining, formatDeadlineValue, isCompetitionRegOpen } from '@/lib/deadline';
 import type { Competition, Event, EventGroup, Athlete, ClubAccount } from '@/types';
 
@@ -110,6 +111,9 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
   const [tempRegs, setTempRegs] = useState<TempReg[]>([]);
 
   const [currentStep, setCurrentStep] = useState<Step>('catalog');
+  // 居中模态报错弹窗（替代角落的一行字 toast，更醒目）
+  const [alertBox, setAlertBox] = useState<{ title: string; message: string } | null>(null);
+  const showAlert = (message: string, title = '无法完成操作') => setAlertBox({ title, message });
 
   // 已提交到后台的报名记录（用于重复检测 + 赛事锁定）
   const [existingRegs, setExistingRegs] = useState<any[]>([]);
@@ -298,11 +302,11 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     const file = e.target.files?.[0];
     if (!file) return;
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      toast.error('仅支持 JPG 或 PNG 格式的照片');
+      showAlert('仅支持 JPG 或 PNG 格式的照片');
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      toast.error('照片大小不能超过 2MB');
+      showAlert('照片大小不能超过 2MB');
       return;
     }
     setQuickAvatarFile(file);
@@ -316,7 +320,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
 
   const handleQuickAdd = async () => {
     if (!quickAddForm.name.trim() || !quickAddForm.birthDate || !quickAddForm.idCard.trim()) {
-      toast.error('请填写姓名、出生日期和身份证号');
+      showAlert('请填写姓名、出生日期和身份证号');
       return;
     }
 
@@ -325,7 +329,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     if (!idResult.valid) {
       setQuickIdCardTouched(true);
       setQuickIdCardError(idResult.error || '身份证号不合法');
-      toast.error('身份证号校验失败：' + idResult.error);
+      showAlert('身份证号校验失败：' + idResult.error);
       return;
     }
 
@@ -372,7 +376,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
       setQuickAvatarPreview(null);
       toast.success(`运动员「${created.name}」已创建并选中`);
     } catch (err: any) {
-      toast.error('创建失败：' + (err?.message || '请重试'));
+      showAlert('创建失败：' + (err?.message || '请重试'));
     } finally {
       setQuickAdding(false);
     }
@@ -387,26 +391,26 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
   // 打开项目清单，不直接提交
   const openSubmissionReview = () => {
     if ((submittedLocked && !adminEditUnlocked) || deadlineBlocked) return;
-    if (tempRegs.length === 0) return toast.error('报名清单为空');
+    if (tempRegs.length === 0) return showAlert('报名清单为空');
     setFilledPanelOpen(true);
   };
 
   // 确认项目清单后提交所有临时报名
   const submitAll = async () => {
     if (submittedLocked && !adminEditUnlocked) return;
-    if (!selCompId) return toast.error('请选择赛事后再提交');
-    if (tempRegs.length === 0) return toast.error('报名清单为空');
+    if (!selCompId) return showAlert('请选择赛事后再提交');
+    if (tempRegs.length === 0) return showAlert('报名清单为空');
     // 兜底守卫：截止/未开放 → 直接拒绝（即使按钮绕过，submit 流程本身也再查一遍）
     // 注意：admin 解锁修改（adminEditUnlocked）走 update 路径，按拍板"仅 create/resubmit 锁 deadline"放行
     if (!adminEditUnlocked && deadlineInfo && !deadlineInfo.ok) {
       const reason = deadlineInfo.reason || 'DEADLINE_PASSED';
-      return toast.error(reason === 'COMPETITION_NOT_OPEN' ? '该赛事当前未开放报名' : '报名已截止，无法提交');
+      return showAlert(reason === 'COMPETITION_NOT_OPEN' ? '该赛事当前未开放报名' : '报名已截止，无法提交');
     }
 
     // 最终限报校验：即使旧页面、缓存草稿或手工请求绕过即时提示，也不能提交超项清单。
     const quotaViolations = findQuotaViolations(tempRegs, events, currentComp);
     if (quotaViolations.length > 0) {
-      toast.error('⚠️ 超项报名，无法提交：' + quotaViolations.join('；'));
+      showAlert('⚠️ 超项报名，无法提交：' + quotaViolations.join('；'));
       return;
     }
     setSubmitting(true);
@@ -484,7 +488,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
       }).catch(() => {});
 
       if (failedItems.length > 0) {
-        toast.error(failedItems.join('；'));
+        showAlert(failedItems.join('；'));
       }
       let msg = `成功提交 ${successCount} 个报名`;
       if (failedItems.length > 0) msg += `，${failedItems.length} 项失败`;
@@ -499,7 +503,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
       }
       } catch (err: any) {
       const message = err?.message || '请稍后重试';
-      toast.error(`提交失败：${message}`);
+      showAlert(`提交失败：${message}`);
       setFilledPanelOpen(true);
     } finally {
       setSubmitting(false);
@@ -602,14 +606,14 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
 
   const confirmReferenceAdd = () => {
     if ((submittedLocked && !adminEditUnlocked) || deadlineBlocked) return;
-    if (!referenceEvent || !referenceSelectedGroup) return toast.error('请选择报名组别');
-    if (!referenceAthleteIds.length) return toast.error('请选择报名队员');
-    if (!adminEditUnlocked && isGroupFull(referenceSelectedGroup)) return toast.error('该报名组别已满，请选择其他组别');
-    if (referenceEvent.isIndividual !== false && referenceAthleteIds.length !== 1) return toast.error('个人项目只能选择 1 名队员');
-    if (referenceEvent.isIndividual === false && referenceAthleteIds.length < 2) return toast.error('团队/集体项目至少选择 2 名队员');
+    if (!referenceEvent || !referenceSelectedGroup) return showAlert('请选择报名组别');
+    if (!referenceAthleteIds.length) return showAlert('请选择报名队员');
+    if (!adminEditUnlocked && isGroupFull(referenceSelectedGroup)) return showAlert('该报名组别已满，请选择其他组别');
+    if (referenceEvent.isIndividual !== false && referenceAthleteIds.length !== 1) return showAlert('个人项目只能选择 1 名队员');
+    if (referenceEvent.isIndividual === false && referenceAthleteIds.length < 2) return showAlert('团队/集体项目至少选择 2 名队员');
     const duplicated = tempRegs.some(r => r.eventId === referenceEvent.id && r.athletes.some(a => referenceAthleteIds.includes(a.athleteId)))
       || (!adminEditUnlocked && existingRegs.some(r => (r.status === 'pending' || r.status === 'confirmed') && r.eventId === referenceEvent.id && r.athletes.some((a: any) => referenceAthleteIds.includes(a.athleteId))));
-    if (duplicated) return toast.error('所选队员已在该项目中报名');
+    if (duplicated) return showAlert('所选队员已在该项目中报名');
     const athleteEntries = athletes.filter(a => referenceAthleteIds.includes(a.id)).map(a => ({ athleteId: a.id, name: a.name }));
     const candidate: TempReg = {
       athletes: athleteEntries,
@@ -620,7 +624,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     };
     const quotaViolations = findQuotaViolations([...tempRegs, candidate], events, currentComp);
     if (quotaViolations.length > 0) {
-      return toast.error('⚠️ 已达到限报数量，不能添加：' + quotaViolations.join('；'));
+      return showAlert('⚠️ 已达到限报数量，不能添加：' + quotaViolations.join('；'));
     }
     setTempRegs(prev => [...prev, candidate]);
     setReferenceAthleteIds([]);
@@ -692,6 +696,12 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
 
   return (
     <div className="w-full max-w-none px-4 sm:px-6 lg:px-8 xl:px-10 pb-32 sm:pb-36">
+      <CenterAlert
+        open={!!alertBox}
+        title={alertBox?.title}
+        message={alertBox?.message || ''}
+        onClose={() => setAlertBox(null)}
+      />
       <div className="mb-5 sm:mb-6 lg:flex lg:items-end lg:justify-between lg:gap-6">
         <div>
           <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-800 tracking-tight">在线报名</h2>
