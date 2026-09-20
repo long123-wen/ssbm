@@ -336,6 +336,30 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
     }
   };
 
+  /** 头像压缩：最长边 ≤ maxDim，转 JPEG。原图 1~3MB 直传会被存储端拒绝/限流。 */
+  const compressImageToDataUrl = (dataUrl: string, maxDim = 480, quality = 0.82): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+          const w = Math.max(1, Math.round(img.width * scale));
+          const h = Math.max(1, Math.round(img.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { reject(new Error('canvas unavailable')); return; }
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } catch (e) { reject(e); }
+      };
+      img.onerror = () => reject(new Error('image decode failed'));
+      img.src = dataUrl;
+    });
+
   /** 检测单元格值是否为图片 base64（dataURL 或裸 base64）。 */
   const extractPhotoDataUrl = (val: any): string | null => {
     if (typeof val !== 'string') return null;
@@ -436,28 +460,55 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
       return;
     }
 
-    // 先把含照片的上传到 R2（并行；失败的留空 avatarUrl，运动员照常入库）
+    // 先把含照片的上传到 R2（串行：压缩后逐张传，避免并发限流；失败的留空 avatarUrl，运动员照常入库）
     let photoUploaded = 0, photoSkipped = 0;
-    const photoResults = await Promise.all(inputs.map(async (it) => {
-      if (!it.photo) return null;
-      const url = await uploadAthleteAvatarFromDataUrl(it.photo);
-      if (url) photoUploaded++;
-      else photoSkipped++;
-      return url;
-    }));
+    const photoResults: (string | null)[] = [];
+    for (const it of inputs) {
+      if (!it.photo) { photoResults.push(null); continue; }
+      try {
+        const compressed = await compressImageToDataUrl(it.photo);
+        const url = await uploadAthleteAvatarFromDataUrl(compressed);
+        if (url) photoUploaded++; else photoSkipped++;
+        photoResults.push(url);
+      } catch {
+        photoSkipped++;
+        photoResults.push(null);
+      }
+    }
     const finalInputs = inputs.map((it, idx) => ({
       ...it.data,
       avatarUrl: photoResults[idx] || undefined,
     }));
 
     try {
-      const result = await athleteStore.batchCreate(finalInputs);
-      setBatchResult({ success: result.length, photoUploaded, photoSkipped, errors });
-      const summary = [`成功导入 ${result.length} 名`];
+      // upsert 语义：身份证号已存在的运动员只补/换头像，不再插入重复记录；新人才创建
+      const existingByCard = new Map(athletes.map(a => [String(a.idCard || '').trim(), a] as const));
+      const toCreate: typeof finalInputs = [];
+      const photoUpdates: Promise<unknown>[] = [];
+      let photoUpdated = 0;
+      for (const inp of finalInputs) {
+        const card = String(inp.idCard || '').trim();
+        const exist = card ? existingByCard.get(card) : undefined;
+        if (exist) {
+          if (inp.avatarUrl) {
+            photoUpdated++;
+            photoUpdates.push(athleteStore.update(exist.id, { avatarUrl: inp.avatarUrl }));
+          }
+        } else {
+          toCreate.push(inp);
+        }
+      }
+      await Promise.all(photoUpdates);
+      const result = await athleteStore.batchCreate(toCreate);
+      setBatchResult({ success: result.length + photoUpdated, photoUploaded, photoSkipped, errors });
+      const summary = [];
+      if (result.length) summary.push(`新增 ${result.length} 名`);
+      if (photoUpdated) summary.push(`更新 ${photoUpdated} 名的照片`);
+      if (!result.length && !photoUpdated) summary.push('没有新数据（所有运动员已存在）');
       if (photoUploaded) summary.push(`上传照片 ${photoUploaded} 张`);
       if (photoSkipped) summary.push(`${photoSkipped} 张照片无效（已跳过）`);
       toast.success(summary.join('，'));
-      if (result.length > 0) load();
+      load();
     } catch (err: any) {
       toast.error('导入失败：' + (err.message || '未知错误'));
     } finally {
