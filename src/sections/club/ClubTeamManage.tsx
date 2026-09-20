@@ -296,12 +296,15 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
 
   // ========== 批量上传逻辑 ==========
   const formatDate = (val: any): string => {
+    // 用本地时区取年月日；toISOString() 是 UTC，东八区早 8 点会把日期少算一天
+    const localYMD = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     if (!val) return '';
-    if (val instanceof Date) return val.toISOString().split('T')[0];
+    if (val instanceof Date) return isNaN(val.getTime()) ? '' : localYMD(val);
     if (typeof val === 'string') return val;
     if (typeof val === 'number') {
       const d = new Date((val - 25569) * 86400000);
-      return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
+      return isNaN(d.getTime()) ? '' : localYMD(d);
     }
     return '';
   };

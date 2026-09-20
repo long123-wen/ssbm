@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "tsBuildInfoFile": "./.tsbuild/tsconfig.node.tsbuildinfo",
+    "tsBuildInfoFile": "C:/Users/Administrator/AppData/Local/Temp/rjr-tsbuild/tsconfig.node.tsbuildinfo",
     "target": "ES2023",
     "lib": ["ES2023"],
     "module": "ESNext",

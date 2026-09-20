@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "tsBuildInfoFile": "./.tsbuild/tsconfig.app.tsbuildinfo",
+    "tsBuildInfoFile": "C:/Users/Administrator/AppData/Local/Temp/rjr-tsbuild/tsconfig.app.tsbuildinfo",
     "target": "ES2022",
     "useDefineForClassFields": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
