@@ -51,7 +51,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
   const [batchData, setBatchData] = useState<any[]>([]);
   const [batchHeaders, setBatchHeaders] = useState<string[]>([]);
   const [batchImporting, setBatchImporting] = useState(false);
-  const [batchResult, setBatchResult] = useState<{ success: number; errors: string[] } | null>(null);
+  const [batchResult, setBatchResult] = useState<{ success: number; photoUploaded: number; photoSkipped: number; errors: string[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 按赛事+俱乐部+队伍三维度加载数据（多队伍数据隔离）
@@ -302,6 +302,44 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
     return '';
   };
 
+  /**
+   * 把 dataURL 图片上传到 athlete-avatars 存储桶；返回公开 URL；失败返回 null。
+   * dataURL 形如 "data:image/jpeg;base64,xxxxx" 或 "data:image/png;base64,xxxxx"。
+   */
+  const uploadAthleteAvatarFromDataUrl = async (dataUrl: string): Promise<string | null> => {
+    try {
+      const m = /^data:image\/([a-z0-9+.-]+);base64,(.+)$/i.exec(dataUrl);
+      if (!m) return null;
+      const ext = m[1].toLowerCase().replace('jpeg', 'jpg');
+      const b64 = m[2];
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const fileName = `${clubId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const blob = new Blob([bytes], { type: `image/${ext}` });
+      const { error: upErr } = await supabase.storage
+        .from('athlete-avatars')
+        .upload(fileName, blob, { upsert: true, contentType: `image/${ext}` });
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from('athlete-avatars').getPublicUrl(fileName);
+      return urlData.publicUrl;
+    } catch (err) {
+      console.warn('batch avatar upload failed:', err);
+      return null;
+    }
+  };
+
+  /** 检测单元格值是否为图片 base64（dataURL 或裸 base64）。 */
+  const extractPhotoDataUrl = (val: any): string | null => {
+    if (typeof val !== 'string') return null;
+    const s = val.trim();
+    if (!s) return null;
+    if (/^data:image\/[a-z0-9+.-]+;base64,/i.test(s)) return s;
+    // 裸 base64：长度 ≥ 80 且仅含 base64 字符
+    if (s.length >= 80 && /^[A-Za-z0-9+/=]+$/.test(s)) return `data:image/jpeg;base64,${s}`;
+    return null;
+  };
+
   const handleBatchFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -340,14 +378,19 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
       try {
         const name = String(row['姓名'] || '').trim();
         if (!name) { errors.push(`第${i + 2}行：缺少姓名`); continue; }
+        const photo = extractPhotoDataUrl(row['照片']);
         inputs.push({
-          clubId,
-          competitionId,
-          teamProfileId,
-          name,
-          gender: String(row['性别'] || '') === '女' ? 'female' : 'male',
-          birthDate: formatDate(row['出生日期']),
-          idCard: String(row['身份证号'] || '').trim(),
+          rowIndex: i,
+          data: {
+            clubId,
+            competitionId,
+            teamProfileId,
+            name,
+            gender: String(row['性别'] || '') === '女' ? 'female' : 'male',
+            birthDate: formatDate(row['出生日期']),
+            idCard: String(row['身份证号'] || '').trim(),
+          },
+          photo,
         });
       } catch (err: any) {
         errors.push(`第${i + 2}行：数据格式错误`);
@@ -355,18 +398,33 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
     }
 
     if (inputs.length === 0) {
-      setBatchResult({ success: 0, errors });
+      setBatchResult({ success: 0, photoUploaded: 0, photoSkipped: 0, errors });
       setBatchImporting(false);
       return;
     }
 
+    // 先把含照片的上传到 R2（并行；失败的留空 avatarUrl，运动员照常入库）
+    let photoUploaded = 0, photoSkipped = 0;
+    const photoResults = await Promise.all(inputs.map(async (it) => {
+      if (!it.photo) return null;
+      const url = await uploadAthleteAvatarFromDataUrl(it.photo);
+      if (url) photoUploaded++;
+      else photoSkipped++;
+      return url;
+    }));
+    const finalInputs = inputs.map((it, idx) => ({
+      ...it.data,
+      avatarUrl: photoResults[idx] || undefined,
+    }));
+
     try {
-      const result = await athleteStore.batchCreate(inputs);
-      setBatchResult({ success: result.length, errors });
-      if (result.length > 0) {
-        toast.success(`成功导入 ${result.length} 条数据`);
-        load();
-      }
+      const result = await athleteStore.batchCreate(finalInputs);
+      setBatchResult({ success: result.length, photoUploaded, photoSkipped, errors });
+      const summary = [`成功导入 ${result.length} 名`];
+      if (photoUploaded) summary.push(`上传照片 ${photoUploaded} 张`);
+      if (photoSkipped) summary.push(`${photoSkipped} 张照片无效（已跳过）`);
+      toast.success(summary.join('，'));
+      if (result.length > 0) load();
     } catch (err: any) {
       toast.error('导入失败：' + (err.message || '未知错误'));
     } finally {
@@ -375,8 +433,15 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
   };
 
   const handleDownloadTemplate = () => {
-    const templateData = [{ '姓名': '张三', '性别': '男', '出生日期': '2010-01-01', '身份证号': '110101201001011234' }];
+    const templateData = [{
+      '姓名': '张三', '性别': '男', '出生日期': '2010-01-01', '身份证号': '110101201001011234',
+      '照片': '', // 列提示：本列可选，填图片的 base64（dataURL 或裸 base64），可用 base64-image.de 等工具转换
+    }];
+    // 写一行说明占位（用注释形式，不影响数据）
     const ws = XLSX.utils.json_to_sheet(templateData);
+    // 表头追加「照片(base64)（可选）」说明（写在批注里）
+    const headers = ['姓名', '性别', '出生日期', '身份证号', '照片'];
+    XLSX.utils.sheet_add_aoa(ws, [headers], { origin: 'A1' });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -653,7 +718,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
               <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-blue-400 transition-colors">
                 <FileSpreadsheet className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                 <p className="text-sm text-slate-600 mb-1">将 Excel 文件拖拽到此处，或点击选择</p>
-                <p className="text-xs text-slate-400 mb-4">支持 .xlsx / .xls 格式</p>
+                <p className="text-xs text-slate-400 mb-4">支持 .xlsx / .xls 格式；模板含「照片」列（可选，填图片 base64）</p>
                 <div className="flex gap-2 justify-center">
                   <Button variant="outline" size="sm" className="h-9 gap-1" onClick={() => handleDownloadTemplate()}>
                     <Download className="w-3.5 h-3.5" />下载模板
@@ -703,6 +768,12 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
               {batchResult && (
                 <div className={`rounded-lg p-3 text-sm ${batchResult.errors.length > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-green-50 border border-green-200'}`}>
                   <p className="font-medium">成功导入 {batchResult.success} 条</p>
+                  {(batchResult.photoUploaded > 0 || batchResult.photoSkipped > 0) && (
+                    <p className="text-xs mt-1 text-slate-600">
+                      上传照片 {batchResult.photoUploaded} 张
+                      {batchResult.photoSkipped > 0 && `，${batchResult.photoSkipped} 张无效已跳过`}
+                    </p>
+                  )}
                   {batchResult.errors.length > 0 && (
                     <div className="mt-2 max-h-32 overflow-y-auto">
                       {batchResult.errors.map((e, i) => (
