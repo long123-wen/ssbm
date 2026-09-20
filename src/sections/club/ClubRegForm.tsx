@@ -110,8 +110,6 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
   const [tempRegs, setTempRegs] = useState<TempReg[]>([]);
 
   const [currentStep, setCurrentStep] = useState<Step>('catalog');
-  const [success, setSuccess] = useState('');
-  const [error, setError] = useState('');
 
   // 已提交到后台的报名记录（用于重复检测 + 赛事锁定）
   const [existingRegs, setExistingRegs] = useState<any[]>([]);
@@ -389,31 +387,29 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
   // 打开项目清单，不直接提交
   const openSubmissionReview = () => {
     if ((submittedLocked && !adminEditUnlocked) || deadlineBlocked) return;
-    if (tempRegs.length === 0) return setError('报名清单为空');
-    setError('');
+    if (tempRegs.length === 0) return toast.error('报名清单为空');
     setFilledPanelOpen(true);
   };
 
   // 确认项目清单后提交所有临时报名
   const submitAll = async () => {
     if (submittedLocked && !adminEditUnlocked) return;
-    if (!selCompId) return setError('请选择赛事后再提交');
-    if (tempRegs.length === 0) return setError('报名清单为空');
+    if (!selCompId) return toast.error('请选择赛事后再提交');
+    if (tempRegs.length === 0) return toast.error('报名清单为空');
     // 兜底守卫：截止/未开放 → 直接拒绝（即使按钮绕过，submit 流程本身也再查一遍）
     // 注意：admin 解锁修改（adminEditUnlocked）走 update 路径，按拍板"仅 create/resubmit 锁 deadline"放行
     if (!adminEditUnlocked && deadlineInfo && !deadlineInfo.ok) {
       const reason = deadlineInfo.reason || 'DEADLINE_PASSED';
-      return setError(reason === 'COMPETITION_NOT_OPEN' ? '该赛事当前未开放报名' : '报名已截止，无法提交');
+      return toast.error(reason === 'COMPETITION_NOT_OPEN' ? '该赛事当前未开放报名' : '报名已截止，无法提交');
     }
 
     // 最终限报校验：即使旧页面、缓存草稿或手工请求绕过即时提示，也不能提交超项清单。
     const quotaViolations = findQuotaViolations(tempRegs, events, currentComp);
     if (quotaViolations.length > 0) {
-      setError('⚠️ 超项报名，无法提交：' + quotaViolations.join('；'));
+      toast.error('⚠️ 超项报名，无法提交：' + quotaViolations.join('；'));
       return;
     }
     setSubmitting(true);
-    setError('');
     try {
       if (adminEditUnlocked) {
         const result = await registrationStore.replaceForUnlockedCompetition({
@@ -431,7 +427,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
         setAdminEditUnlocked(false);
         setFilledPanelOpen(false);
         setCurrentStep('catalog');
-        setSuccess(`修改后的报名项目清单已提交，共 ${result.replaced} 项，管理员端已实时更新`);
+        toast.success(`修改后的报名项目清单已提交，共 ${result.replaced} 项，管理员端已实时更新`);
         registrationStore.getByClubAndTeam(club.id, teamProfileId).then(setExistingRegs).catch(() => {});
         return;
       }
@@ -488,23 +484,22 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
       }).catch(() => {});
 
       if (failedItems.length > 0) {
-        setError(failedItems.join('；'));
+        toast.error(failedItems.join('；'));
       }
       let msg = `成功提交 ${successCount} 个报名`;
       if (failedItems.length > 0) msg += `，${failedItems.length} 项失败`;
-      setSuccess(msg);
+      toast.success(msg);
       if (successCount > 0) {
         setSubmittedLocked(true);
         setFilledPanelOpen(false);
         setCurrentStep('catalog');
-        setSuccess(failedItems.length > 0
+        toast.success(failedItems.length > 0
           ? `已提交 ${successCount} 个报名，当前报名界面已锁定，${failedItems.length} 项未提交请联系管理员处理`
           : '报名已提交，当前报名界面已锁定，不可再次操作报名');
       }
-      setTimeout(() => setSuccess(''), 5000);
-    } catch (err: any) {
+      } catch (err: any) {
       const message = err?.message || '请稍后重试';
-      setError(`提交失败：${message}`);
+      toast.error(`提交失败：${message}`);
       setFilledPanelOpen(true);
     } finally {
       setSubmitting(false);
@@ -592,7 +587,6 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     setReferenceGroupId('');
     setReferenceAthleteIds([]);
     setCurrentStep('picker');
-    setError('');
   };
 
   const toggleReferenceAthlete = (athleteId: string) => {
@@ -608,14 +602,14 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
 
   const confirmReferenceAdd = () => {
     if ((submittedLocked && !adminEditUnlocked) || deadlineBlocked) return;
-    if (!referenceEvent || !referenceSelectedGroup) return setError('请选择报名组别');
-    if (!referenceAthleteIds.length) return setError('请选择报名队员');
-    if (!adminEditUnlocked && isGroupFull(referenceSelectedGroup)) return setError('该报名组别已满，请选择其他组别');
-    if (referenceEvent.isIndividual !== false && referenceAthleteIds.length !== 1) return setError('个人项目只能选择 1 名队员');
-    if (referenceEvent.isIndividual === false && referenceAthleteIds.length < 2) return setError('团队/集体项目至少选择 2 名队员');
+    if (!referenceEvent || !referenceSelectedGroup) return toast.error('请选择报名组别');
+    if (!referenceAthleteIds.length) return toast.error('请选择报名队员');
+    if (!adminEditUnlocked && isGroupFull(referenceSelectedGroup)) return toast.error('该报名组别已满，请选择其他组别');
+    if (referenceEvent.isIndividual !== false && referenceAthleteIds.length !== 1) return toast.error('个人项目只能选择 1 名队员');
+    if (referenceEvent.isIndividual === false && referenceAthleteIds.length < 2) return toast.error('团队/集体项目至少选择 2 名队员');
     const duplicated = tempRegs.some(r => r.eventId === referenceEvent.id && r.athletes.some(a => referenceAthleteIds.includes(a.athleteId)))
       || (!adminEditUnlocked && existingRegs.some(r => (r.status === 'pending' || r.status === 'confirmed') && r.eventId === referenceEvent.id && r.athletes.some((a: any) => referenceAthleteIds.includes(a.athleteId))));
-    if (duplicated) return setError('所选队员已在该项目中报名');
+    if (duplicated) return toast.error('所选队员已在该项目中报名');
     const athleteEntries = athletes.filter(a => referenceAthleteIds.includes(a.id)).map(a => ({ athleteId: a.id, name: a.name }));
     const candidate: TempReg = {
       athletes: athleteEntries,
@@ -626,7 +620,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     };
     const quotaViolations = findQuotaViolations([...tempRegs, candidate], events, currentComp);
     if (quotaViolations.length > 0) {
-      return setError('⚠️ 已达到限报数量，不能添加：' + quotaViolations.join('；'));
+      return toast.error('⚠️ 已达到限报数量，不能添加：' + quotaViolations.join('；'));
     }
     setTempRegs(prev => [...prev, candidate]);
     setReferenceAthleteIds([]);
@@ -635,8 +629,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     setCompletedEventId(referenceEvent.id);
     setCompletedGroupId(referenceSelectedGroup.id);
     setCurrentStep('completed');
-    setSuccess(`已完成${referenceEvent.name}（${referenceSelectedGroup.name}）填报`);
-    setTimeout(() => setSuccess(''), 3500);
+    toast.success(`已完成${referenceEvent.name}（${referenceSelectedGroup.name}）填报`);
   };
 
   const resetReferenceFlow = () => {
@@ -646,7 +639,6 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     setCompletedEventId(null);
     setCompletedGroupId(null);
     setCurrentStep('catalog');
-    setError('');
   };
 
   const continueCurrentEvent = () => {
@@ -657,16 +649,13 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     setCompletedEventId(null);
     setCompletedGroupId(null);
     setCurrentStep('picker');
-    setError('');
   };
 
   const saveAndReturnToCatalog = () => {
     setCompletedEventId(null);
     setCompletedGroupId(null);
     setCurrentStep('catalog');
-    setError('');
-    setSuccess('填报内容已保存，可继续选择其他报名项目');
-    setTimeout(() => setSuccess(''), 3500);
+    toast.success('填报内容已保存，可继续选择其他报名项目');
   };
 
   const completedEvent = completedEventId ? events.find(event => event.id === completedEventId) : undefined;
@@ -716,16 +705,6 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
         </div>
       </div>
 
-      {success && (
-        <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-center gap-2.5 text-emerald-700 text-sm">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />{success}
-        </div>
-      )}
-      {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center gap-2.5 text-red-700 text-sm">
-          <AlertCircle className="w-4 h-4 shrink-0" />{error}
-        </div>
-      )}
 
       {athletes.length === 0 && !loading && (
         <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2.5 text-amber-700 text-sm">
