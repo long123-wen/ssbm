@@ -78,6 +78,7 @@ export const competitionStore = {
     if (input.logoUrl !== undefined) patch.logo_url = input.logoUrl;
     if (input.maxIndividualEvents !== undefined) patch.max_individual_events = input.maxIndividualEvents;
     if (input.maxTeamEvents !== undefined) patch.max_team_events = input.maxTeamEvents;
+    if ((input as any).forceOpen !== undefined) patch.force_open = (input as any).forceOpen ? 1 : 0;
     patch.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase.from(TABLES.competitions).update(patch).eq('id', id).select().single();
@@ -1093,6 +1094,7 @@ function mapCompetition(row: Record<string, unknown>): Competition {
     description: row.description as string, logoUrl: row.logo_url as string,
     maxIndividualEvents: row.max_individual_events as number,
     maxTeamEvents: row.max_team_events as number,
+    forceOpen: Boolean(row.force_open),
     createdAt: row.created_at as string, updatedAt: row.updated_at as string,
   };
 }

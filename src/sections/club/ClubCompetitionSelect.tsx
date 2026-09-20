@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { competitionStore } from '@/lib/store';
 import ThemeToggle from '@/components/ThemeToggle';
 import type { Competition, ClubAccount } from '@/types';
+import { isCompetitionRegOpen } from '@/lib/deadline';
 
 const STORAGE_KEY = 'club_selected_competition_id';
 
@@ -54,8 +55,8 @@ export default function ClubCompetitionSelect({ club, onSelect, onLogout }: Prop
       )
     : competitions;
 
-  const openComps = filtered.filter(c => c.status === 'open');
-  const otherComps = filtered.filter(c => c.status !== 'open');
+  const openComps = filtered.filter(isCompetitionRegOpen);
+  const otherComps = filtered.filter(c => !isCompetitionRegOpen(c));
 
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -166,7 +167,7 @@ export default function ClubCompetitionSelect({ club, onSelect, onLogout }: Prop
 
 function CompetitionCard({ competition: c, onSelect }: { competition: Competition; onSelect: () => void }) {
   const st = statusLabel[c.status] || statusLabel.draft;
-  const isOpen = c.status === 'open';
+  const isOpen = isCompetitionRegOpen(c);
 
   return (
     <Card

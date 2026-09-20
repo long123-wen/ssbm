@@ -17,8 +17,8 @@ type TableConfig = {
 
 export const TABLES = {
   competitions: {
-    columns: ['id','name','subtitle','venue','start_date','end_date','registration_deadline','status','description','logo_url','max_individual_events','max_team_events','created_at','updated_at'],
-    publicRead: true,
+    columns: ['id','name','subtitle','venue','start_date','end_date','registration_deadline','status','description','logo_url','max_individual_events','max_team_events','force_open','created_at','updated_at'],
+    booleans: ['force_open'], publicRead: true,
   },
   events: {
     columns: ['id','competition_id','name','code','category','description','min_athletes','max_athletes','is_individual','order_index','created_at','updated_at'],

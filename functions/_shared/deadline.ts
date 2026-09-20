@@ -38,12 +38,16 @@ export interface DeadlineDecision {
  * 与 assertCompetitionOpen 在语义上必须完全一致。
  */
 export function evaluateDeadline(
-  row: { status?: unknown; registration_deadline?: unknown },
+  row: { status?: unknown; registration_deadline?: unknown; force_open?: unknown },
   now: Date = new Date(),
 ): DeadlineDecision & { ok: boolean; reason?: DeadlineErrorCode | 'OK' } {
   const status = typeof row.status === 'string' ? row.status : '';
   if (status !== 'open') {
     return { ok: false, reason: 'COMPETITION_NOT_OPEN', remaining_ms: null, level: 'expired', deadlineAt: null };
+  }
+  // 管理端「特殊情况强制开放」：force_open=1 时跳过截止时间校验（状态仍须为 open）
+  if (row.force_open === 1 || row.force_open === true || row.force_open === '1') {
+    return { ok: true, reason: 'OK', remaining_ms: null, level: 'safe', deadlineAt: null };
   }
   const raw = row.registration_deadline;
   if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) {

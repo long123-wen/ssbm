@@ -33,6 +33,7 @@ export interface Competition {
   logoUrl?: string;
   maxIndividualEvents?: number;  // 每名运动员个人项目限报项数（未设置则不限）
   maxTeamEvents?: number;        // 每名运动员集体项目限报项数（未设置则不限）
+  forceOpen?: boolean;           // 管理端「特殊情况强制开放」：跳过截止时间校验
   createdAt: string;
   updatedAt: string;
 }

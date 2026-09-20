@@ -177,13 +177,31 @@ export default function AdminOverview({ competitionId, onNavigate }: Props) {
 
   const handleToggleStatus = async () => {
     if (!stats.openCompetition || togglingStatus) return;
-    const current = stats.openCompetition.status;
-    const next = current === 'open' ? 'closed' : 'open';
-    const nextLabel = next === 'open' ? '开放' : '截止';
+    const comp = stats.openCompetition;
+    const decision = evaluateDeadline({
+      status: comp.status,
+      registration_deadline: comp.registrationDeadline,
+      force_open: comp.forceOpen,
+    });
     setTogglingStatus(true);
     try {
-      await competitionStore.update(competitionId, { status: next });
-      toast.success(`报名已${nextLabel}`);
+      if (comp.status !== 'open') {
+        // 关闭/草稿/结束 → 手动开放
+        await competitionStore.update(competitionId, { status: 'open' });
+        toast.success('报名已开放');
+      } else if (comp.forceOpen) {
+        // 当前处于「特殊开放」→ 取消，恢复截止
+        await competitionStore.update(competitionId, { forceOpen: false });
+        toast.success('已取消特殊开放，恢复报名截止');
+      } else if (decision.ok) {
+        // 正常开放中（未过截止）→ 截止
+        await competitionStore.update(competitionId, { status: 'closed' });
+        toast.success('报名已截止');
+      } else {
+        // status=open 但已过截止时间 → 特殊情况一键强制开放
+        await competitionStore.update(competitionId, { forceOpen: true });
+        toast.success('已临时开放报名（特殊情况），俱乐部端恢复正常报名');
+      }
       load();
     } catch (err: any) {
       toast.error('操作失败：' + (err?.message || '请重试'));
@@ -252,12 +270,24 @@ interface OverviewHeaderProps {
 
 function OverviewHeader({ competition, togglingStatus, onToggleStatus }: OverviewHeaderProps) {
   if (!competition) return null;
-  // 展示态与截止时间联动：status=open 但已过报名截止 → 按「报名已截止」展示（DB 状态不变，仍可手动切换）
+  // 展示态与截止时间联动：status=open 但已过报名截止 → 按「报名已截止」展示；
+  // force_open=1（特殊开放）→ 按「报名开放中（特殊开放）」展示
   const deadlineDecision = evaluateDeadline({
     status: competition.status,
     registration_deadline: competition.registrationDeadline,
+    force_open: competition.forceOpen,
   });
   const effectivelyOpen = competition.status === 'open' && deadlineDecision.ok;
+  const badgeText = effectivelyOpen
+    ? (competition.forceOpen ? '报名开放中（特殊开放）' : '报名开放中')
+    : competition.status === 'open' ? '报名已截止'
+    : competition.status === 'closed' ? '报名已截止'
+    : competition.status === 'completed' ? '赛事已结束'
+    : competition.status === 'draft' ? '草稿' : competition.status;
+  const badgeTitle = competition.status !== 'open' ? '点击开放报名'
+    : competition.forceOpen ? '点击取消特殊开放，恢复报名截止'
+    : effectivelyOpen ? '点击截止报名'
+    : '已过截止时间，点击可临时开放报名（特殊情况）';
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-blue-950 p-6 text-white">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-500/10 via-transparent to-transparent" />
@@ -284,7 +314,7 @@ function OverviewHeader({ competition, togglingStatus, onToggleStatus }: Overvie
               ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/30 border-emerald-400/30 hover:bg-emerald-500/30'
               : 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-400/30 border-amber-400/30 hover:bg-amber-500/30'
           } ${togglingStatus ? 'opacity-50 cursor-wait' : ''}`}
-          title={competition.status === 'open' ? (effectivelyOpen ? '点击截止报名' : '报名截止时间已过，点击可强制关闭') : '点击开放报名'}
+          title={badgeTitle}
         >
           {togglingStatus ? (
             <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -293,11 +323,7 @@ function OverviewHeader({ competition, togglingStatus, onToggleStatus }: Overvie
           ) : (
             <Lock className="w-3.5 h-3.5" />
           )}
-          {effectivelyOpen ? '报名开放中' :
-           competition.status === 'open' ? '报名已截止（超过截止时间）' :
-           competition.status === 'closed' ? '报名已截止' :
-           competition.status === 'completed' ? '赛事已结束' :
-           competition.status === 'draft' ? '草稿' : competition.status}
+          {badgeText}
         </button>
       </div>
     </div>

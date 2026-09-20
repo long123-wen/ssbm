@@ -1,0 +1,337 @@
+[
+  {
+    "results": [
+      {
+        "id": 5,
+        "parent": 0,
+        "notused": 61,
+        "detail": "SEARCH r USING INDEX idx_registrations_comp_status_created (competition_id=? AND status=?)"
+      },
+      {
+        "id": 45,
+        "parent": 0,
+        "notused": 0,
+        "detail": "USE TEMP B-TREE FOR LAST TERM OF ORDER BY"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "SJC",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.7255
+      },
+      "duration": 0.7255,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 978944,
+      "rows_read": 0,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "sep": "---"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "SJC",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.2171
+      },
+      "duration": 0.2171,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 978944,
+      "rows_read": 0,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "id": 5,
+        "parent": 0,
+        "notused": 61,
+        "detail": "SEARCH r USING INDEX idx_registrations_comp_status_created (competition_id=? AND status=?)"
+      },
+      {
+        "id": 47,
+        "parent": 0,
+        "notused": 0,
+        "detail": "USE TEMP B-TREE FOR LAST TERM OF ORDER BY"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "SJC",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.2808
+      },
+      "duration": 0.2808,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 978944,
+      "rows_read": 0,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "sep": "---"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "SJC",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.2009
+      },
+      "duration": 0.2009,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 978944,
+      "rows_read": 0,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "id": 5,
+        "parent": 0,
+        "notused": 61,
+        "detail": "SEARCH r USING INDEX idx_registrations_comp_group_status (competition_id=? AND group_id=?)"
+      },
+      {
+        "id": 37,
+        "parent": 0,
+        "notused": 0,
+        "detail": "USE TEMP B-TREE FOR ORDER BY"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "SJC",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.4275
+      },
+      "duration": 0.4275,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 978944,
+      "rows_read": 0,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "sep": "---"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "SJC",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.2175
+      },
+      "duration": 0.2175,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 978944,
+      "rows_read": 0,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "id": 5,
+        "parent": 0,
+        "notused": 62,
+        "detail": "SEARCH r USING INDEX idx_registrations_club_team_created (club_id=?)"
+      },
+      {
+        "id": 38,
+        "parent": 0,
+        "notused": 0,
+        "detail": "USE TEMP B-TREE FOR ORDER BY"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "SJC",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.4156
+      },
+      "duration": 0.4156,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 978944,
+      "rows_read": 0,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "sep": "---"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "SJC",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.2264
+      },
+      "duration": 0.2264,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 978944,
+      "rows_read": 0,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "id": 5,
+        "parent": 0,
+        "notused": 61,
+        "detail": "SEARCH order_book_entries USING INDEX sqlite_autoindex_order_book_entries_3 (order_book_id=?)"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "SJC",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.2658
+      },
+      "duration": 0.2658,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 978944,
+      "rows_read": 0,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "sep": "---"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "SJC",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.0615
+      },
+      "duration": 0.0615,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 978944,
+      "rows_read": 0,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "id": 10,
+        "parent": 0,
+        "notused": 61,
+        "detail": "SEARCH r USING INDEX idx_registrations_comp_status_created (competition_id=? AND status=?)"
+      },
+      {
+        "id": 16,
+        "parent": 0,
+        "notused": 46,
+        "detail": "SEARCH e USING INDEX sqlite_autoindex_events_1 (id=?)"
+      },
+      {
+        "id": 21,
+        "parent": 0,
+        "notused": 46,
+        "detail": "SEARCH g USING INDEX sqlite_autoindex_event_groups_1 (id=?)"
+      },
+      {
+        "id": 55,
+        "parent": 0,
+        "notused": 0,
+        "detail": "USE TEMP B-TREE FOR ORDER BY"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "SJC",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.4456
+      },
+      "duration": 0.4456,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 978944,
+      "rows_read": 0,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]

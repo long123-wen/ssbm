@@ -15,7 +15,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { validateIdCard, extractBirthDate, extractGender } from '@/lib/idCardValidator';
 import { isGroupEligible } from '@/lib/groupMatcher';
-import { evaluateDeadline, formatDeadlineRemaining } from '@/lib/deadline';
+import { evaluateDeadline, formatDeadlineRemaining, isCompetitionRegOpen } from '@/lib/deadline';
 import type { Competition, Event, EventGroup, Athlete, ClubAccount } from '@/types';
 
 interface Props { club: ClubAccount; competitionId: string; teamProfileId: string }
@@ -163,6 +163,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     return evaluateDeadline({
       status: comp.status,
       registration_deadline: comp.registrationDeadline,
+      force_open: comp.forceOpen,
     });
   }, [competitions, selCompId]);
   // 派生日历倒计时文案（safe/warning/urgent/expired + 文本），UI 横幅和按钮文案共用
@@ -191,7 +192,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
       athleteStore.getByClubAndTeam(club.id, teamProfileId),
       registrationStore.getByClubAndTeam(club.id, teamProfileId),
     ]).then(([comps, aths, regs]) => {
-      const openComps = comps.filter(c => c.status === 'open');
+      const openComps = comps.filter(isCompetitionRegOpen);
       setCompetitions(openComps);
       // 如果父级已预选赛事，且该赛事在开放列表中，直接使用
       if (competitionId && openComps.some(c => c.id === competitionId)) {

@@ -35,7 +35,7 @@ const THREE_DAYS = 3 * ONE_DAY;
  * @param now  可选测试用当前时间，默认 new Date()
  */
 export function evaluateDeadline(
-  row: { status?: unknown; registration_deadline?: unknown },
+  row: { status?: unknown; registration_deadline?: unknown; force_open?: unknown },
   now: Date = new Date(),
 ): DeadlineDecision {
   const status = typeof row.status === 'string' ? row.status : '';
@@ -47,6 +47,17 @@ export function evaluateDeadline(
       level: 'expired',
       deadlineAt: null,
       message: '该赛事当前未开放报名',
+    };
+  }
+  // 管理端「特殊情况强制开放」：force_open=1 时跳过截止时间校验（状态仍须为 open）
+  if (row.force_open === 1 || row.force_open === true || row.force_open === '1') {
+    return {
+      ok: true,
+      reason: null,
+      remaining_ms: null,
+      level: 'safe',
+      deadlineAt: null,
+      message: null,
     };
   }
   const raw = row.registration_deadline;
@@ -117,4 +128,20 @@ export function deadlineErrorMessage(code: DeadlineErrorCode | null): string {
   if (code === 'COMPETITION_NOT_OPEN') return '该赛事当前未开放报名';
   if (code === 'DEADLINE_PASSED') return '报名已截止';
   return '';
+}
+
+/**
+ * 便捷判断：赛事当前是否可报名（status=open 且未过截止，或管理端强制开放）。
+ * 传入 camelCase 的 Competition 对象，用于客户端过滤赛事列表。
+ */
+export function isCompetitionRegOpen(comp: {
+  status?: string | null;
+  registrationDeadline?: string | null;
+  forceOpen?: boolean | number | null;
+}): boolean {
+  return evaluateDeadline({
+    status: comp.status ?? undefined,
+    registration_deadline: comp.registrationDeadline ?? undefined,
+    force_open: comp.forceOpen ?? undefined,
+  }).ok;
 }
