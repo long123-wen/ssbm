@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { toast } from 'sonner';
 import {
   competitionStore, eventStore, groupStore,
   athleteStore, registrationStore, checkLimitViolations, limitConfigStore
@@ -374,7 +373,6 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
       setQuickIdCardTouched(false);
       setQuickAvatarFile(null);
       setQuickAvatarPreview(null);
-      toast.success(`运动员「${created.name}」已创建并选中`);
     } catch (err: any) {
       showAlert('创建失败：' + (err?.message || '请重试'));
     } finally {
@@ -431,7 +429,6 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
         setAdminEditUnlocked(false);
         setFilledPanelOpen(false);
         setCurrentStep('catalog');
-        toast.success(`修改后的报名项目清单已提交，共 ${result.replaced} 项，管理员端已实时更新`);
         registrationStore.getByClubAndTeam(club.id, teamProfileId).then(setExistingRegs).catch(() => {});
         return;
       }
@@ -490,16 +487,10 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
       if (failedItems.length > 0) {
         showAlert(failedItems.join('；'));
       }
-      let msg = `成功提交 ${successCount} 个报名`;
-      if (failedItems.length > 0) msg += `，${failedItems.length} 项失败`;
-      toast.success(msg);
       if (successCount > 0) {
         setSubmittedLocked(true);
         setFilledPanelOpen(false);
         setCurrentStep('catalog');
-        toast.success(failedItems.length > 0
-          ? `已提交 ${successCount} 个报名，当前报名界面已锁定，${failedItems.length} 项未提交请联系管理员处理`
-          : '报名已提交，当前报名界面已锁定，不可再次操作报名');
       }
       } catch (err: any) {
       const message = err?.message || '请稍后重试';
@@ -633,7 +624,6 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     setCompletedEventId(referenceEvent.id);
     setCompletedGroupId(referenceSelectedGroup.id);
     setCurrentStep('completed');
-    toast.success(`已完成${referenceEvent.name}（${referenceSelectedGroup.name}）填报`);
   };
 
   const resetReferenceFlow = () => {
@@ -659,7 +649,6 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     setCompletedEventId(null);
     setCompletedGroupId(null);
     setCurrentStep('catalog');
-    toast.success('填报内容已保存，可继续选择其他报名项目');
   };
 
   const completedEvent = completedEventId ? events.find(event => event.id === completedEventId) : undefined;
