@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { leaderStore, coachStore, athleteStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { validateIdCard, extractBirthDate, extractGender } from '@/lib/idCardValidator';
+import { compressImageToDataUrl } from '@/lib/imageCompress';
 import { extractSheetPhotos } from '@/lib/xlsxPhotos';
 import type { TeamLeader, Coach, Athlete } from '@/types';
 import * as XLSX from 'xlsx';
@@ -336,29 +337,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
     }
   };
 
-  /** 头像压缩：最长边 ≤ maxDim，转 JPEG。原图 1~3MB 直传会被存储端拒绝/限流。 */
-  const compressImageToDataUrl = (dataUrl: string, maxDim = 480, quality = 0.82): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        try {
-          const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-          const w = Math.max(1, Math.round(img.width * scale));
-          const h = Math.max(1, Math.round(img.height * scale));
-          const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) { reject(new Error('canvas unavailable')); return; }
-          ctx.fillStyle = '#fff';
-          ctx.fillRect(0, 0, w, h);
-          ctx.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', quality));
-        } catch (e) { reject(e); }
-      };
-      img.onerror = () => reject(new Error('image decode failed'));
-      img.src = dataUrl;
-    });
+  // 头像压缩统一走 src/lib/imageCompress.ts（编辑弹窗 / 管理端 / 批量导入共用一套参数）
 
   /** 检测单元格值是否为图片 base64（dataURL 或裸 base64）。 */
   const extractPhotoDataUrl = (val: any): string | null => {

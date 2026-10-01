@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { compressImageFile } from '@/lib/imageCompress';
 import {
   Search, Edit2, User, GraduationCap, UserCheck, Building2,
   X, Camera, ImageIcon, ChevronRight, ChevronDown, Trash2, AlertTriangle,
@@ -298,8 +299,13 @@ export default function AdminPersonnel({ competitionId }: Props) {
           try {
             const fileExt = avatarFile.name.split('.').pop()?.toLowerCase() || 'jpg';
             const fileName = `${raw.clubId || 'admin'}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
+            // 压缩到头像尺寸再上传（480px / ~30KB），上传耗时从数秒降到 1 秒内
+            const compressed = await compressImageFile(avatarFile);
             const { data: uploadData, error: uploadErr } = await supabase.storage
-              .from('athlete-avatars').upload(fileName, avatarFile, { upsert: true, contentType: avatarFile.type });
+              .from('athlete-avatars').upload(fileName, compressed, {
+                upsert: true,
+                contentType: compressed.type || 'image/jpeg',
+              });
             if (uploadErr) throw uploadErr;
             const { data: urlData } = supabase.storage.from('athlete-avatars').getPublicUrl(fileName);
             avatarUrl = urlData.publicUrl;

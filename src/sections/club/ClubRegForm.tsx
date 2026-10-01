@@ -15,6 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { validateIdCard, extractBirthDate, extractGender } from '@/lib/idCardValidator';
 import { isGroupEligible } from '@/lib/groupMatcher';
 import { CenterAlert } from '@/components/CenterAlert';
+import { compressImageFile } from '@/lib/imageCompress';
 import { evaluateDeadline, formatDeadlineRemaining, formatDeadlineValue, isCompetitionRegOpen } from '@/lib/deadline';
 import type { Competition, Event, EventGroup, Athlete, ClubAccount } from '@/types';
 
@@ -340,9 +341,11 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
         try {
           const fileExt = quickAvatarFile.name.split('.').pop()?.toLowerCase() || 'jpg';
           const fileName = `${club.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
+          // 压缩到头像尺寸再上传（480px / ~30KB）
+          const compressed = await compressImageFile(quickAvatarFile);
           const { data: uploadData, error: uploadErr } = await supabase.storage
             .from('athlete-avatars')
-            .upload(fileName, quickAvatarFile, { upsert: true, contentType: quickAvatarFile.type });
+            .upload(fileName, compressed, { upsert: true, contentType: compressed.type || 'image/jpeg' });
           if (uploadErr) throw uploadErr;
           const { data: urlData } = supabase.storage.from('athlete-avatars').getPublicUrl(fileName);
           avatarUrl = urlData.publicUrl;
