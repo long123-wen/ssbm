@@ -362,6 +362,22 @@ async function deleteRows(env: Env, config: TableConfig & { name: TableName }, b
   // athletes 表自身则可以直接从 RETURNING 行中提取。
   const cascadingKeys = await collectAthleteAvatarKeysBeforeDelete(env, config, clauses, [...values]);
 
+  // 运动员删除前置校验：registration_athletes 的 FK 是 ON DELETE RESTRICT，
+  // 已报名的运动员直接删会抛外键错误（用户看到的是晦涩的"引用的记录不存在或被使用"）。
+  // 这里提前查出引用数，给出可操作的中文提示。
+  if (config.name === 'athletes') {
+    const refs = await env.REGISTRATION_DB.prepare(
+      `SELECT COUNT(*) AS n FROM registration_athletes WHERE athlete_id IN (SELECT id FROM athletes WHERE ${clauses.join(' AND ')})`,
+    ).bind(...values).first<{ n: number }>();
+    if (refs && Number(refs.n) > 0) {
+      throw new HttpError(
+        422,
+        `该运动员已报名 ${refs.n} 个项目，无法直接删除。请先在「我的报名」中删除相关报名后再试，或联系管理员处理`,
+        'ATHLETE_HAS_REGISTRATIONS',
+      );
+    }
+  }
+
   const result = await env.REGISTRATION_DB.prepare(
     `DELETE FROM ${config.name} WHERE ${clauses.join(' AND ')} RETURNING *`,
   ).bind(...values).all<Row>();
