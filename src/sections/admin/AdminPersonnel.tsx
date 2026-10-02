@@ -312,7 +312,7 @@ export default function AdminPersonnel({ competitionId }: Props) {
             if (raw.avatarUrl && raw.avatarUrl.includes('athlete-avatars')) {
               try {
                 const oldPath = new URL(raw.avatarUrl).pathname.split('/athlete-avatars/')[1];
-                if (oldPath) await supabase.storage.from('athlete-avatars').remove([oldPath]);
+                if (oldPath) void supabase.storage.from('athlete-avatars').remove([oldPath]);
               } catch { /* ignore */ }
             }
           } catch {

@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { leaderStore, coachStore, athleteStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { validateIdCard, extractBirthDate, extractGender } from '@/lib/idCardValidator';
-import { compressImageToDataUrl } from '@/lib/imageCompress';
+import { compressImageToDataUrl, compressImageFile } from '@/lib/imageCompress';
 import { extractSheetPhotos } from '@/lib/xlsxPhotos';
 import type { TeamLeader, Coach, Athlete } from '@/types';
 import * as XLSX from 'xlsx';
@@ -185,9 +185,11 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
           const fileExt = avatarFile.name.split('.').pop()?.toLowerCase() || 'jpg';
           const fileName = `${clubId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
 
+          // 压缩到头像尺寸再上传（480px / ~30KB），2MB 原图直传要 5-10 秒
+          const compressed = await compressImageFile(avatarFile);
           const { data: uploadData, error: uploadErr } = await supabase.storage
             .from('athlete-avatars')
-            .upload(fileName, avatarFile, { upsert: true, contentType: avatarFile.type });
+            .upload(fileName, compressed, { upsert: true, contentType: compressed.type || 'image/jpeg' });
 
           if (uploadErr) throw uploadErr;
 
@@ -198,12 +200,12 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
 
           avatarUrl = urlData.publicUrl;
 
-          // 删除旧照片（如果有）
+          // 删除旧照片（如果有）——后台清理，不阻塞保存
           if (aEdit?.avatarUrl && aEdit.avatarUrl.includes('athlete-avatars')) {
             try {
               const oldPath = new URL(aEdit.avatarUrl).pathname.split('/athlete-avatars/')[1];
               if (oldPath) {
-                await supabase.storage.from('athlete-avatars').remove([oldPath]);
+                void supabase.storage.from('athlete-avatars').remove([oldPath]);
               }
             } catch { /* 忽略旧文件删除错误 */ }
           }
