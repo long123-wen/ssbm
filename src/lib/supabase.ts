@@ -60,6 +60,21 @@ function apiUrl(path: string): string {
   return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
+/**
+ * 当前所在门户（club / admin），作为 X-RJ-Portal 头发给后端。
+ *
+ * 同一个浏览器可以同时登录管理端和参赛单位端（两枚角色 Cookie 并存）。
+ * 后端据此挑选对应角色的会话；不带这个头时后端只能按"最近使用"竞争，
+ * 导致在另一个标签页操作后刷新当前页会被误判为未登录、踢回登录页。
+ */
+function currentPortal(): 'admin' | 'club' | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const hash = (window.location.hash || '').toLowerCase();
+  if (hash.includes('#admin')) return 'admin';
+  if (hash.includes('#club')) return 'club';
+  return undefined;
+}
+
 function publicApiUrl(path: string): string {
   const url = apiUrl(path);
   if (/^https?:\/\//i.test(url)) return url;
@@ -121,14 +136,18 @@ async function request<T>(path: string, init: RequestInit): Promise<ApiResult<T>
   const timeout = window.setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
   try {
+    const portal = currentPortal();
+    // 用 Headers 实例合并，保证 Content-Type / 幂等键 / 身份头都不丢
+    const headers = new Headers(init.headers as HeadersInit | undefined);
+    if (!headers.has('Accept')) headers.set('Accept', 'application/json');
+    // 声明当前门户，让后端在双会话并存时取对应角色的会话（防止刷新被踢回登录页）
+    if (portal) headers.set('X-RJ-Portal', portal);
+
     const response = await fetch(apiUrl(path), {
       ...init,
       credentials: 'include',
       signal: controller.signal,
-      headers: {
-        Accept: 'application/json',
-        ...init.headers,
-      },
+      headers,
     });
     const body = await parseResponse(response);
 
@@ -162,13 +181,14 @@ async function request<T>(path: string, init: RequestInit): Promise<ApiResult<T>
 }
 
 function jsonRequest<T>(path: string, body?: unknown, init: RequestInit = {}): Promise<ApiResult<T>> {
+  // 用 Headers 实例合并，避免 apiWorkflow 传入的 Headers 对象被对象展开丢字段
+  // （幂等键 / Content-Type 会静默消失）
+  const headers = new Headers(init.headers as HeadersInit | undefined);
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   return request<T>(path, {
     ...init,
     method: init.method || 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...init.headers,
-    },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
