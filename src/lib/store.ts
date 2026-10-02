@@ -253,9 +253,9 @@ export const clubStore = {
     return mapClub(row);
   },
   async create(input: Omit<ClubAccount, 'id' | 'createdAt' | 'isApproved'> & { password: string }): Promise<ClubAccount> {
-    // 检查用户名是否已存在
+    // 检查用户名是否已存在（注册页已改为「参赛单位名称即登录账号」）
     const exist = await this.getByUsername(input.username);
-    if (exist) throw new Error('用户名已存在');
+    if (exist) throw new Error('该参赛单位名称已被注册，请更换名称或联系管理员');
 
     const { data, error } = await supabase.from(TABLES.clubs).insert({
       username: input.username,
