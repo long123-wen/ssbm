@@ -10,6 +10,19 @@ import type {
 } from '@/types';
 
 // ========== 工具函数 ==========
+
+/**
+ * 删除结果校验：请求失败或「实际删到 0 行」都必须抛错。
+ * （修复：删除请求失败被静默吞掉，界面却提示"已删除"，用户以为删掉了实际还在。）
+ */
+function assertDeleted(result: { error: { message: string } | null; data: unknown }, entity: string): void {
+  if (result.error) {
+    throw new Error(result.error.message || `删除${entity}失败，请重试`);
+  }
+  if (Array.isArray(result.data) && result.data.length === 0) {
+    throw new Error(`该${entity}不存在或已被删除，请刷新列表后重试`);
+  }
+}
 const uid = () => crypto.randomUUID?.() ?? (Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
 
 // 简单内存缓存（SWR 风格，默认 TTL 30 秒）
@@ -87,7 +100,8 @@ export const competitionStore = {
     return data ? mapCompetition(data) : null;
   },
   async delete(id: string): Promise<void> {
-    await supabase.from(TABLES.competitions).delete().eq('id', id);
+    const res = await supabase.from(TABLES.competitions).delete().eq('id', id);
+    assertDeleted(res, '赛事');
     invalidate('comp:');
   },
 };
@@ -138,7 +152,8 @@ export const eventStore = {
     return data ? mapEvent(data) : null;
   },
   async delete(id: string): Promise<void> {
-    await supabase.from(TABLES.events).delete().eq('id', id);
+    const res = await supabase.from(TABLES.events).delete().eq('id', id);
+    assertDeleted(res, '项目');
     invalidate('event:');
   },
 };
@@ -183,7 +198,8 @@ export const groupStore = {
     return data ? mapGroup(data) : null;
   },
   async delete(id: string): Promise<void> {
-    await supabase.from(TABLES.event_groups).delete().eq('id', id);
+    const res = await supabase.from(TABLES.event_groups).delete().eq('id', id);
+    assertDeleted(res, '组别');
     invalidate('group:');
   },
   // 使用数据库 RPC 原子操作，避免并发报名时计数竞态
@@ -468,7 +484,8 @@ export const leaderStore = {
     return data ? mapLeader(data) : null;
   },
   async delete(id: string): Promise<void> {
-    await supabase.from(TABLES.team_leaders).delete().eq('id', id);
+    const res = await supabase.from(TABLES.team_leaders).delete().eq('id', id);
+    assertDeleted(res, '领队');
   },
 };
 
@@ -576,7 +593,8 @@ export const coachStore = {
     return data ? mapCoach(data) : null;
   },
   async delete(id: string): Promise<void> {
-    await supabase.from(TABLES.coaches).delete().eq('id', id);
+    const res = await supabase.from(TABLES.coaches).delete().eq('id', id);
+    assertDeleted(res, '教练员');
   },
 };
 
@@ -696,7 +714,8 @@ export const athleteStore = {
     return data ? mapAthlete(data) : null;
   },
   async delete(id: string): Promise<void> {
-    await supabase.from(TABLES.athletes).delete().eq('id', id);
+    const res = await supabase.from(TABLES.athletes).delete().eq('id', id);
+    assertDeleted(res, '运动员');
   },
   /** 按ID列表批量查询运动员（用于验证等场景） */
   async getByIds(ids: string[]): Promise<Athlete[]> {
@@ -1031,7 +1050,8 @@ export const adminUserStore = {
     return data ? mapAdminUser(data) : null;
   },
   async delete(id: string): Promise<void> {
-    await supabase.from(TABLES.admin_users).delete().eq('id', id);
+    const res = await supabase.from(TABLES.admin_users).delete().eq('id', id);
+    assertDeleted(res, '管理员');
   },
 };
 
