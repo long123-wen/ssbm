@@ -389,6 +389,8 @@ export const TABLES = {
   athletes: 'athletes',
   registrations: 'registrations',
   order_entries: 'order_entries',
+  scorecard_entries: 'scorecard_entries',
+  order_book_entries: 'order_book_entries',
   admin_users: 'admin_users',
   team_profiles: 'team_profiles',
   limit_configs: 'limit_configs',

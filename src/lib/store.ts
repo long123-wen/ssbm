@@ -312,11 +312,17 @@ export const clubStore = {
   async delete(id: string): Promise<{ deleted: Record<string, number>; errors: string[] }> {
     const deleted: Record<string, number> = {};
     const errors: string[] = [];
+    // 必须按外键依赖从叶子到根删除，否则撞 ON DELETE RESTRICT：
+    //   scorecard_entries ──RESTRICT──> order_book_entries ──RESTRICT──> registrations
+    //   registration_athletes.athlete_id ──RESTRICT──> athletes
+    // 顺序：计分表 → 秩序册条目 → 报名(级联清 registration_athletes) → 运动员 → 其余 → 账号
     const steps: [string, { then(onfulfilled: (v: any) => any): any }][] = [
+      ['scorecard_entries', supabase.from(TABLES.scorecard_entries).delete().eq('club_id', id).then(r => ({ error: r.error, count: r.count }))],
+      ['order_book_entries', supabase.from(TABLES.order_book_entries).delete().eq('club_id', id).then(r => ({ error: r.error, count: r.count }))],
+      ['registrations', supabase.from(TABLES.registrations).delete().eq('club_id', id).then(r => ({ error: r.error, count: r.count }))],
+      ['athletes', supabase.from(TABLES.athletes).delete().eq('club_id', id).then(r => ({ error: r.error, count: r.count }))],
       ['team_leaders', supabase.from(TABLES.team_leaders).delete().eq('club_id', id).then(r => ({ error: r.error, count: r.count }))],
       ['coaches', supabase.from(TABLES.coaches).delete().eq('club_id', id).then(r => ({ error: r.error, count: r.count }))],
-      ['athletes', supabase.from(TABLES.athletes).delete().eq('club_id', id).then(r => ({ error: r.error, count: r.count }))],
-      ['registrations', supabase.from(TABLES.registrations).delete().eq('club_id', id).then(r => ({ error: r.error, count: r.count }))],
       ['team_profiles', supabase.from(TABLES.team_profiles).delete().eq('club_id', id).then(r => ({ error: r.error, count: r.count }))],
     ];
     for (const [name, queryPromise] of steps) {

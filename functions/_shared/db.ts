@@ -51,6 +51,14 @@ export const TABLES = {
     columns: ['id','competition_id','event_id','event_name','group_id','group_name','start_order','session_label','session_number','venue_number','bib_number','club_id','club_name','athletes','coach_name','created_at'],
     json: ['athletes'], ownerColumn: 'club_id', clubRead: true,
   },
+  scorecard_entries: {
+    columns: ['id','scorecard_import_id','competition_id','order_book_entry_id','registration_id','team_profile_id','club_id','club_name','team_name','event_name','group_name','session_label','session_number','venue_number','athlete_names','created_at'],
+    json: ['athlete_names'], ownerColumn: 'club_id',
+  },
+  order_book_entries: {
+    columns: ['id','order_book_id','registration_id','competition_id','event_id','event_name','group_id','group_name','start_order','session_label','session_number','venue_number','bib_number','club_id','club_name','athletes','coach_name','created_at'],
+    json: ['athletes'], ownerColumn: 'club_id',
+  },
   admin_users: {
     columns: ['id','username','password_hash','display_name','role','is_active','reset_required','reset_metadata','created_at','updated_at'],
     json: ['reset_metadata'], booleans: ['is_active','reset_required'],
@@ -64,7 +72,7 @@ const IDENTIFIER = /^[a-z_][a-z0-9_]*$/;
 const MAX_ROWS = 1000;
 // Registrations have stateful domain rules and are writeable only via dedicated
 // workflow endpoints. Generic data access remains read-only for them.
-const CLUB_TABLES = new Set<TableName>(['clubs','team_profiles','team_leaders','coaches','athletes','registrations']);
+const CLUB_TABLES = new Set<TableName>(['clubs','team_profiles','team_leaders','coaches','athletes','registrations','scorecard_entries','order_book_entries']);
 const ADMIN_ONLY_TABLES = new Set<TableName>(['admin_users','limit_configs']);
 const WORKFLOW_ONLY_WRITES = new Set<TableName>(['registrations','order_entries']);
 const SERVER_COLUMNS = new Set(['id','created_at','updated_at']);
@@ -154,7 +162,11 @@ function role(session: SessionPrincipal | null): 'public' | 'club' | 'admin' {
 function authorize(config: TableConfig & { name: TableName }, action: DataQueryRequest['action'], session: SessionPrincipal | null): void {
   const actor = role(session);
   if (action !== 'select' && WORKFLOW_ONLY_WRITES.has(config.name)) {
-    throw new HttpError(403, 'This resource may only be changed through its dedicated workflow API', 'WORKFLOW_ENDPOINT_REQUIRED');
+    // 报名/出场顺序的「写入/更新」必须走专用 workflow（维护组别计数器等状态）。
+    // 但「删除」是注销账号时的级联清理场景，豁免放行（club 受 ownership 限制只能删自己的）。
+    if (!(action === 'delete' && session)) {
+      throw new HttpError(403, 'This resource may only be changed through its dedicated workflow API', 'WORKFLOW_ENDPOINT_REQUIRED');
+    }
   }
   if (actor === 'admin') return;
   if (action === 'select') {
