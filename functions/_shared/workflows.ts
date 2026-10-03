@@ -555,7 +555,7 @@ export async function generateOrderBook(request: Request, env: Env, actor: Sessi
   try {
     const competition = await getCompetition(env, competitionId); const versions = await env.REGISTRATION_DB.prepare('SELECT COALESCE(MAX(version), 0) AS version FROM order_books WHERE competition_id = ?').bind(competitionId).first<Row>(); const orderBookId = crypto.randomUUID(); const version = Number(versions?.version || 0) + 1;
     await env.REGISTRATION_DB.prepare(`INSERT INTO order_books (id,competition_id,version,status,is_current,is_stale,generated_by,generated_at) VALUES (?,?,?,'building',0,0,?,?)`).bind(orderBookId,competitionId,version,actor.userId,now).run();
-    const registrations = await env.REGISTRATION_DB.prepare(`SELECT r.* FROM registrations r JOIN events e ON e.id = r.event_id JOIN event_groups g ON g.id = r.group_id WHERE r.competition_id = ? AND r.status = 'confirmed' ORDER BY e.order_index ASC, g.age_min ASC, g.age_max ASC, CASE g.gender WHEN 'male' THEN 1 WHEN 'female' THEN 2 ELSE 3 END ASC, g.order_index ASC, r.created_at ASC, r.id ASC`).bind(competitionId).all<Row>();
+    const registrations = await env.REGISTRATION_DB.prepare(`SELECT r.*, e.category AS category FROM registrations r JOIN events e ON e.id = r.event_id JOIN event_groups g ON g.id = r.group_id WHERE r.competition_id = ? AND r.status = 'confirmed' ORDER BY e.order_index ASC, g.age_min ASC, g.age_max ASC, CASE g.gender WHEN 'male' THEN 1 WHEN 'female' THEN 2 ELSE 3 END ASC, g.order_index ASC, r.created_at ASC, r.id ASC`).bind(competitionId).all<Row>();
     const rows = registrations.results || []; let order = 1; let session = 1; let venue = 1; let currentEventId = ''; const statements: D1PreparedStatement[] = [];
     for (const registration of rows) {
       // 切换项目时，无论上一项目使用了多少场地，均从下一场次的 1 号场地重新开始。
@@ -567,6 +567,9 @@ export async function generateOrderBook(request: Request, env: Env, actor: Sessi
       const label = `${session}-${venue}`;
       statements.push(env.REGISTRATION_DB.prepare(`INSERT INTO order_book_entries (id,order_book_id,registration_id,competition_id,event_id,event_name,group_id,group_name,start_order,session_label,session_number,venue_number,bib_number,club_id,club_name,athletes,coach_name) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(crypto.randomUUID(),orderBookId,registration.id,competitionId,registration.event_id,registration.event_name,registration.group_id,registration.group_name,order,label,session,venue,label,registration.club_id,registration.club_name,registration.athletes,registration.coach_name));
       order += 1;
+      // 非计数赛（花样赛 / 规定赛 / 民族跳绳操）逐个上场打分：一个场次只排一个队伍，
+      // 因此插完这条立刻进入下一场次，场地回到 1 号。
+      if (String(registration.category || '') !== '计数赛') { session += 1; venue = 1; continue; }
       venue += 1;
       if (venue > venueCount) { session += 1; venue = 1; }
     }
