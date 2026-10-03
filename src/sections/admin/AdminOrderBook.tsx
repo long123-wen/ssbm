@@ -425,7 +425,7 @@ export default function AdminOrderBook({ competitionId }: { competitionId: strin
                                   </td>
                                 )}
                                 <td className="px-3 py-2 text-center" style={{ border: '1px solid #000000' }}>
-                                  <span className="inline-block bg-blue-50 text-blue-700 border border-blue-200 font-mono text-xs px-2 py-0.5 rounded">
+                                  <span className="inline-flex items-center justify-center bg-blue-50 text-blue-700 border border-blue-200 font-mono text-xs px-2 leading-none h-[22px] rounded">
                                     {e.sessionLabel}
                                   </span>
                                 </td>
@@ -532,7 +532,7 @@ export default function AdminOrderBook({ competitionId }: { competitionId: strin
                               </td>
                             )}
                             <td className="px-3 py-2 text-center" style={{ border: '1px solid #000000' }}>
-                              <span className="inline-block bg-blue-50 text-blue-700 border border-blue-200 font-mono text-xs px-2 py-0.5 rounded">
+                              <span className="inline-flex items-center justify-center bg-blue-50 text-blue-700 border border-blue-200 font-mono text-xs px-2 leading-none h-[22px] rounded">
                                 {e.sessionLabel}
                               </span>
                             </td>
