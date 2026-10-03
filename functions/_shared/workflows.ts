@@ -250,6 +250,14 @@ async function buildClubRegistration(
       quotaReservations?.set(quotaKey, reserved + 1);
     }
   }
+  // 混合组必须男女都有：按组别名含「混合」或组别性别为 mixed 判定
+  const groupIsMixed = String(event.group_name || '').includes('混合') || String(event.group_gender || '').toLowerCase() === 'mixed';
+  if (groupIsMixed) {
+    const genders = new Set(athletes.map(a => String(a.gender || '').toLowerCase()));
+    if (!genders.has('male') || !genders.has('female')) {
+      throw new HttpError(422, '混合组必须至少包含一名男运动员和一名女运动员，请调整队员', 'MIXED_GROUP_NEEDS_BOTH_GENDERS');
+    }
+  }
   await assertLimits(env, input, event, actor.userId, excludeRegistrationIds);
   const coach = input.coachId ? await env.REGISTRATION_DB.prepare('SELECT name FROM coaches WHERE id = ?').bind(input.coachId).first<Row>() : null;
   return { athletes, registration: { id: crypto.randomUUID(), competition_id: input.competitionId, club_id: actor.userId, team_profile_id: input.teamProfileId || null, club_name: String(club.club_name), event_id: input.eventId, event_name: String(event.name), group_id: input.groupId, group_name: String(event.group_name), athletes: JSON.stringify(input.athleteIds.map(athleteId => ({ athleteId, name: athletes.find(item => item.id === athleteId)?.name }))), coach_id: input.coachId || null, coach_name: coach?.name || null, status: 'pending' } };

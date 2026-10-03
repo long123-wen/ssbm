@@ -621,6 +621,13 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     const duplicated = tempRegs.some(r => r.eventId === referenceEvent.id && r.athletes.some(a => referenceAthleteIds.includes(a.athleteId)))
       || (!adminEditUnlocked && existingRegs.some(r => (r.status === 'pending' || r.status === 'confirmed') && r.eventId === referenceEvent.id && r.athletes.some((a: any) => referenceAthleteIds.includes(a.athleteId))));
     if (duplicated) return showAlert('所选队员已在该项目中报名');
+    // 混合组必须男女都有
+    if ((referenceSelectedGroup.name || '').includes('混合')) {
+      const genders = new Set(athletes.filter(a => referenceAthleteIds.includes(a.id)).map(a => a.gender));
+      if (!genders.has('male') || !genders.has('female')) {
+        return showAlert('混合组必须至少包含一名男运动员和一名女运动员，请调整队员');
+      }
+    }
     const athleteEntries = athletes.filter(a => referenceAthleteIds.includes(a.id)).map(a => ({ athleteId: a.id, name: a.name }));
     const candidate: TempReg = {
       athletes: athleteEntries,
