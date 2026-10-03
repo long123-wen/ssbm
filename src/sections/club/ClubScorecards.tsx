@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { scorecardStore, type ScorecardEntry } from '@/lib/store';
+import { scorecardStore, eventStore, type ScorecardEntry } from '@/lib/store';
 import { toast } from 'sonner';
 import type { TeamProfile } from '@/types';
 import { PDFDocument, rgb } from 'pdf-lib';
@@ -83,10 +83,17 @@ export default function ClubScorecards({ competitionId, teamProfiles, selectedTe
   const [exporting, setExporting] = useState(false);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [preview, setPreview] = useState<{ url: string; blob: Blob; rows: number } | null>(null);
+  const [events, setEvents] = useState<Array<{ name: string; category: string }>>([]);
   const isMobileBrowser = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
   useEffect(() => { setTeamId(selectedTeamId); }, [selectedTeamId]);
   useEffect(() => { void load(); }, [competitionId, mode, teamId]);
+  useEffect(() => {
+    // 拉取项目分类（计数赛/花样赛/规定赛…），用于过滤出只需要「速度赛评分表」的条目
+    eventStore.getByCompetition(competitionId)
+      .then(list => setEvents(list.map(e => ({ name: e.name, category: e.category }))))
+      .catch(() => setEvents([]));
+  }, [competitionId]);
 
   const load = async () => {
     setLoading(true);
@@ -98,10 +105,18 @@ export default function ClubScorecards({ competitionId, teamProfiles, selectedTe
     finally { setLoading(false); }
   };
 
-  const allAthleteNames = useMemo(() => Array.from(new Set(entries.flatMap(entry => entry.athlete_names.map(name => String(name))))).sort((a, b) => a.localeCompare(b, 'zh-CN')), [entries]);
-  const selectedEntries = entries.filter(entry => selected[entry.id]);
+  // 只有计数赛（速度类）项目使用「速度赛评分表」；花样/规定/民族跳绳操等不在此生成。
+  // events 数据缺失时不过滤（宁可多显示，不误杀）。
+  const isCountingEntry = (entry: ScorecardEntry) => {
+    if (!events.length) return true;
+    const ev = events.find(x => x.name === entry.event_name);
+    return !ev || ev.category === '计数赛';
+  };
+  const displayEntries = useMemo(() => entries.filter(isCountingEntry), [entries, events]);
+  const allAthleteNames = useMemo(() => Array.from(new Set(displayEntries.flatMap(entry => entry.athlete_names.map(name => String(name))))).sort((a, b) => a.localeCompare(b, 'zh-CN')), [displayEntries]);
+  const selectedEntries = displayEntries.filter(entry => selected[entry.id]);
   const selectedCount = selectedEntries.length;
-  const allSelected = entries.length > 0 && selectedCount === entries.length;
+  const allSelected = displayEntries.length > 0 && selectedCount === displayEntries.length;
   const someSelected = selectedCount > 0 && !allSelected;
   const allRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => { if (allRef.current) allRef.current.indeterminate = someSelected; }, [someSelected]);
@@ -175,9 +190,9 @@ export default function ClubScorecards({ competitionId, teamProfiles, selectedTe
     <div className="p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5"><div><h2 className="text-lg sm:text-xl font-bold text-slate-800">计分表自助生成</h2><p className="text-xs sm:text-sm text-slate-500 mt-1">按队伍或运动员查询出场顺序，选择后自动填充并导出打印版 PDF。</p></div>{imported && <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700"><ClipboardCheck className="w-3.5 h-3.5" />已加载第 {String(imported.source_order_book_version || '-')} 版数据</div>}</div>
       <Card className="border-slate-200 shadow-sm mb-4"><CardContent className="p-4"><div className="flex flex-wrap gap-2 mb-4"><Button variant={mode === 'team' ? 'default' : 'outline'} onClick={() => setMode('team')} className="gap-1.5"><Users className="w-4 h-4" />按队伍查询</Button><Button variant={mode === 'athlete' ? 'default' : 'outline'} onClick={() => setMode('athlete')} className="gap-1.5"><UserRound className="w-4 h-4" />按运动员姓名</Button></div>{mode === 'team' ? <div><Label>选择队伍</Label><select value={teamId} onChange={event => setTeamId(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm">{teamProfiles.map(team => <option key={team.id} value={team.id}>{team.teamName}</option>)}</select></div> : <div><Label>运动员姓名</Label><div className="flex gap-2 mt-1"><Input value={athleteName} onChange={event => setAthleteName(event.target.value)} placeholder="输入姓名，如：周嘉怡" onKeyDown={event => { if (event.key === 'Enter') void load(); }} /><Button onClick={() => void load()} className="gap-1.5"><Search className="w-4 h-4" />查询</Button></div>{allAthleteNames.length > 0 && <div className="flex flex-wrap gap-1.5 mt-2">{allAthleteNames.map(name => <button key={name} onClick={() => { setAthleteName(name); setTimeout(() => void load(), 0); }} className="text-xs rounded-full border border-slate-200 px-2.5 py-1 text-slate-600 hover:border-blue-300 hover:text-blue-600">{name}</button>)}</div>}</div>}</CardContent></Card>
-      <div className="flex items-center justify-between mb-3"><span className="text-sm text-slate-500">{loading ? '正在查询...' : `共 ${entries.length} 条出场记录`}<span className="ml-3 text-slate-400">已选 {selectedCount} 条</span></span><Button onClick={() => void generatePreview(selectedEntries.length ? selectedEntries : entries)} disabled={loading || exporting || !entries.length} className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"><Printer className="w-4 h-4" />{exporting ? '正在生成预览...' : (selectedCount ? `预览已选 ${selectedCount} 条` : '预览计分表')}</Button></div>
-      {entries.length > 0 && <div className="mb-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600"><label className="inline-flex cursor-pointer items-center gap-2"><input ref={allRef} type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 accent-blue-600" /><span>{allSelected ? '取消全选' : someSelected ? '全选当前列表' : '全选当前列表'}</span></label><span className="text-xs text-slate-400">（{entries.length} 条）</span>{selectedCount > 0 && <button type="button" onClick={() => setSelected({})} className="ml-auto text-xs text-slate-500 hover:text-blue-600">清空选择</button>}</div>}
-      {!imported ? <div className="rounded-xl border border-dashed border-slate-300 bg-white py-14 text-center text-sm text-slate-400"><ClipboardCheck className="w-10 h-10 mx-auto mb-3 opacity-30" />管理员尚未导入计分表数据</div> : !entries.length && !loading ? <div className="rounded-xl border border-dashed border-slate-300 bg-white py-14 text-center text-sm text-slate-400">没有匹配的出场记录</div> : <div className="space-y-2">{entries.map(entry => <label key={entry.id} className={`flex items-start gap-3 rounded-lg border bg-white p-3 cursor-pointer transition-colors ${selected[entry.id] ? 'border-blue-400 bg-blue-50/50' : 'border-slate-200 hover:border-blue-200'}`}><input type="checkbox" checked={!!selected[entry.id]} onChange={event => setSelected(prev => ({ ...prev, [entry.id]: event.target.checked }))} className="mt-1 h-4 w-4 accent-blue-600" /><div className="min-w-0 flex-1"><div className="font-semibold text-slate-800">{entry.event_name}</div><div className="text-sm text-slate-600 mt-1">{entry.group_name} · {entry.session_label} · {entry.team_name || entry.club_name}</div><div className="text-sm text-slate-500 mt-1">姓名：{displayNames(entry.athlete_names)}</div></div></label>)}</div>}
+      <div className="flex items-center justify-between mb-3"><span className="text-sm text-slate-500">{loading ? '正在查询...' : `共 ${displayEntries.length} 条出场记录（仅计数赛项目）`}<span className="ml-3 text-slate-400">已选 {selectedCount} 条</span></span><Button onClick={() => void generatePreview(selectedEntries.length ? selectedEntries : displayEntries)} disabled={loading || exporting || !displayEntries.length} className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"><Printer className="w-4 h-4" />{exporting ? '正在生成预览...' : (selectedCount ? `预览已选 ${selectedCount} 条` : '预览计分表')}</Button></div>
+      {displayEntries.length > 0 && <div className="mb-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600"><label className="inline-flex cursor-pointer items-center gap-2"><input ref={allRef} type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 accent-blue-600" /><span>{allSelected ? '取消全选' : someSelected ? '全选当前列表' : '全选当前列表'}</span></label><span className="text-xs text-slate-400">（{displayEntries.length} 条）</span>{selectedCount > 0 && <button type="button" onClick={() => setSelected({})} className="ml-auto text-xs text-slate-500 hover:text-blue-600">清空选择</button>}</div>}
+      {!imported ? <div className="rounded-xl border border-dashed border-slate-300 bg-white py-14 text-center text-sm text-slate-400"><ClipboardCheck className="w-10 h-10 mx-auto mb-3 opacity-30" />管理员尚未导入计分表数据</div> : !displayEntries.length && !loading ? <div className="rounded-xl border border-dashed border-slate-300 bg-white py-14 text-center text-sm text-slate-400">没有匹配的出场记录</div> : <div className="space-y-2">{displayEntries.map(entry => <label key={entry.id} className={`flex items-start gap-3 rounded-lg border bg-white p-3 cursor-pointer transition-colors ${selected[entry.id] ? 'border-blue-400 bg-blue-50/50' : 'border-slate-200 hover:border-blue-200'}`}><input type="checkbox" checked={!!selected[entry.id]} onChange={event => setSelected(prev => ({ ...prev, [entry.id]: event.target.checked }))} className="mt-1 h-4 w-4 accent-blue-600" /><div className="min-w-0 flex-1"><div className="font-semibold text-slate-800">{entry.event_name}</div><div className="text-sm text-slate-600 mt-1">{entry.group_name} · {entry.session_label} · {entry.team_name || entry.club_name}</div><div className="text-sm text-slate-500 mt-1">姓名：{displayNames(entry.athlete_names)}</div></div></label>)}</div>}
       {preview && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="计分表导出预览"><div className="flex h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"><div className="flex items-center justify-between border-b border-slate-200 px-4 py-3"><div><div className="font-semibold text-slate-800">计分表预览</div><div className="text-xs text-slate-500 mt-0.5">请确认文字位置、字号和三联版式无误后再导出</div></div><Button variant="ghost" size="icon" onClick={closePreview} aria-label="关闭预览"><X className="h-5 w-5" /></Button></div>{isMobileBrowser ? <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 bg-slate-100 p-6 text-center"><div className="rounded-xl bg-white p-5 shadow-sm"><Printer className="mx-auto mb-3 h-10 w-10 text-blue-600" /><div className="font-semibold text-slate-800">手机浏览器不支持页面内嵌 PDF 预览</div><div className="mt-2 text-sm leading-6 text-slate-500">点击下方按钮，在微信/系统 PDF 查看器中打开原版三联计分表。</div><Button onClick={() => { const opened = window.open(preview.url, '_blank', 'noopener,noreferrer'); if (!opened) toast.info('请点击浏览器右上角菜单，选择“在浏览器中打开”'); }} className="mt-2 gap-1.5 bg-blue-600 text-white hover:bg-blue-700"><Printer className="h-4 w-4" />打开 PDF 预览</Button></div></div> : <iframe title="计分表 PDF 预览" src={preview.url} className="min-h-0 flex-1 bg-slate-100" />}<div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-3"><Button variant="outline" onClick={closePreview}>返回修改</Button><Button onClick={() => void confirmExport()} className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700"><Download className="h-4 w-4" />{isMobileBrowser ? '打开系统保存/分享' : '确认并导出 PDF'}</Button></div></div></div>}
     </div>
   );
