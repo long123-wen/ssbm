@@ -576,6 +576,18 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     return ids.size;
   };
 
+  // 当前项目下「已填报过」的运动员（本次会话已填 + 已提交待审/已通过的报名），复选框直接禁选
+  const referenceFilledAthleteIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (!referenceEvent) return ids;
+    tempRegs.filter(r => r.eventId === referenceEvent.id).forEach(r => r.athletes.forEach(a => ids.add(a.athleteId)));
+    if (!adminEditUnlocked) {
+      existingRegs.filter((r: any) => (r.status === 'pending' || r.status === 'confirmed') && r.eventId === referenceEvent.id)
+        .forEach((r: any) => (r.athletes || []).forEach((a: any) => ids.add(a.athleteId)));
+    }
+    return ids;
+  }, [referenceEvent, tempRegs, existingRegs, adminEditUnlocked]);
+
   const openReferenceEvent = (eventId: string) => {
     if ((submittedLocked && !adminEditUnlocked) || deadlineBlocked) return;
     const ev = events.find(e => e.id === eventId);
@@ -589,6 +601,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
 
   const toggleReferenceAthlete = (athleteId: string) => {
     if ((submittedLocked && !adminEditUnlocked) || deadlineBlocked) return;
+    if (referenceFilledAthleteIds.has(athleteId)) return; // 已在该项目填报过，禁选
     setReferenceAthleteIds(prev => {
       if (prev.includes(athleteId)) return prev.filter(id => id !== athleteId);
       if (isAthleteQuotaReached(athleteId)) return prev;
@@ -782,6 +795,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
                   selectedAthleteIds={referenceAthleteIds}
                   onToggleAthlete={toggleReferenceAthlete}
                   maxAthletes={referenceMaxAthletes}
+                  disabledAthleteIds={referenceFilledAthleteIds}
                   isAthleteQuotaReached={isAthleteQuotaReached}
                   quotaTextFor={(athleteId) => referenceEvent?.isIndividual !== false
                     ? `个人项目已报满${currentComp?.maxIndividualEvents}项`
@@ -991,6 +1005,8 @@ interface Step3AthletesProps {
   selectedAthleteIds: string[];
   onToggleAthlete: (id: string) => void;
   maxAthletes: number;
+  /** 该项目下已填报过的运动员（本次已填 + 已提交的报名），复选框禁用 */
+  disabledAthleteIds: Set<string>;
   isAthleteQuotaReached: (id: string) => boolean;
   quotaTextFor: (id: string) => string;
   onClearAthletes: () => void;
@@ -1002,7 +1018,7 @@ interface Step3AthletesProps {
 function RegFormStep3Athletes({
   event, allGroups, selectedGroupId, onSelectGroup, isGroupFull,
   eligibleAthletes, selectedAthleteIds, onToggleAthlete, maxAthletes,
-  isAthleteQuotaReached, quotaTextFor, onClearAthletes, onCancel, onConfirm,
+  disabledAthleteIds, isAthleteQuotaReached, quotaTextFor, onClearAthletes, onCancel, onConfirm,
 }: Step3AthletesProps) {
   const hasGroup = Boolean(selectedGroupId);
   return (
@@ -1038,12 +1054,15 @@ function RegFormStep3Athletes({
           <div className="space-y-2 max-h-[48vh] overflow-y-auto">
             {eligibleAthletes.map(a => {
               const checked = selectedAthleteIds.includes(a.id);
-              const quotaReached = !checked && isAthleteQuotaReached(a.id);
-              return <button key={a.id} type="button" disabled={quotaReached} onClick={() => onToggleAthlete(a.id)} className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${checked ? 'border-emerald-400 bg-emerald-50' : quotaReached ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed' : 'border-slate-200 bg-white'}`}>
-                <span className={`w-5 h-5 rounded border flex items-center justify-center ${checked ? 'bg-emerald-500 border-emerald-500 text-white' : quotaReached ? 'border-slate-200 bg-slate-100' : 'border-slate-300'}`}>{checked ? '✓' : ''}</span>
+              const alreadyFilled = !checked && disabledAthleteIds.has(a.id);
+              const quotaReached = !checked && !alreadyFilled && isAthleteQuotaReached(a.id);
+              const locked = quotaReached || alreadyFilled;
+              return <button key={a.id} type="button" disabled={locked} onClick={() => onToggleAthlete(a.id)} className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${checked ? 'border-emerald-400 bg-emerald-50' : locked ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed' : 'border-slate-200 bg-white'}`}>
+                <span className={`w-5 h-5 rounded border flex items-center justify-center ${checked ? 'bg-emerald-500 border-emerald-500 text-white' : locked ? 'border-slate-200 bg-slate-100' : 'border-slate-300'}`}>{checked ? '✓' : ''}</span>
                 {a.avatarUrl ? <img src={a.avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover" /> : <span className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-sm text-slate-500">{a.name[0]}</span>}
-                <span className={`font-medium ${quotaReached ? 'text-slate-400' : 'text-slate-800'}`}>{a.name}</span><span className="text-xs text-slate-400">{a.gender === 'male' ? '男' : '女'}</span>
-                {quotaReached && <span className="ml-auto text-[11px] text-slate-400 whitespace-nowrap">{quotaTextFor(a.id)}</span>}
+                <span className={`font-medium ${locked ? 'text-slate-400' : 'text-slate-800'}`}>{a.name}</span><span className="text-xs text-slate-400">{a.gender === 'male' ? '男' : '女'}</span>
+                {alreadyFilled && <span className="ml-auto text-[11px] text-slate-400 whitespace-nowrap">已填报该项目</span>}
+                {!alreadyFilled && quotaReached && <span className="ml-auto text-[11px] text-slate-400 whitespace-nowrap">{quotaTextFor(a.id)}</span>}
               </button>;
             })}
             {eligibleAthletes.length === 0 && <p className="py-6 text-center text-sm text-amber-600">队伍中没有符合该组别要求的运动员</p>}
