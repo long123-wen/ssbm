@@ -618,6 +618,11 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     if (!adminEditUnlocked && isGroupFull(referenceSelectedGroup)) return showAlert('该报名组别已满，请选择其他组别');
     if (referenceEvent.isIndividual !== false && referenceAthleteIds.length !== 1) return showAlert('个人项目只能选择 1 名队员');
     if (referenceEvent.isIndividual === false && referenceAthleteIds.length < 2) return showAlert('团队/集体项目至少选择 2 名队员');
+    // 管理端设置的「最少参赛人数」（集体项目如 6-12 人）
+    const minAthletes = Number(referenceEvent.minAthletes || 0);
+    if (minAthletes > 0 && referenceAthleteIds.length < minAthletes) {
+      return showAlert(`该项目至少需要 ${minAthletes} 名队员，当前已选 ${referenceAthleteIds.length} 人`);
+    }
     const duplicated = tempRegs.some(r => r.eventId === referenceEvent.id && r.athletes.some(a => referenceAthleteIds.includes(a.athleteId)))
       || (!adminEditUnlocked && existingRegs.some(r => (r.status === 'pending' || r.status === 'confirmed') && r.eventId === referenceEvent.id && r.athletes.some((a: any) => referenceAthleteIds.includes(a.athleteId))));
     if (duplicated) return showAlert('所选队员已在该项目中报名');
@@ -802,6 +807,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
                   selectedAthleteIds={referenceAthleteIds}
                   onToggleAthlete={toggleReferenceAthlete}
                   maxAthletes={referenceMaxAthletes}
+                  minAthletes={Number(referenceEvent.minAthletes || 0)}
                   disabledAthleteIds={referenceFilledAthleteIds}
                   isAthleteQuotaReached={isAthleteQuotaReached}
                   quotaTextFor={(athleteId) => referenceEvent?.isIndividual !== false
@@ -1012,6 +1018,7 @@ interface Step3AthletesProps {
   selectedAthleteIds: string[];
   onToggleAthlete: (id: string) => void;
   maxAthletes: number;
+  minAthletes: number;
   /** 该项目下已填报过的运动员（本次已填 + 已提交的报名），复选框禁用 */
   disabledAthleteIds: Set<string>;
   isAthleteQuotaReached: (id: string) => boolean;
@@ -1024,7 +1031,7 @@ interface Step3AthletesProps {
 /** Step 3：选组别 + 选队员（行 908-958 段） */
 function RegFormStep3Athletes({
   event, allGroups, selectedGroupId, onSelectGroup, isGroupFull,
-  eligibleAthletes, selectedAthleteIds, onToggleAthlete, maxAthletes,
+  eligibleAthletes, selectedAthleteIds, onToggleAthlete, maxAthletes, minAthletes,
   disabledAthleteIds, isAthleteQuotaReached, quotaTextFor, onClearAthletes, onCancel, onConfirm,
 }: Step3AthletesProps) {
   const hasGroup = Boolean(selectedGroupId);
@@ -1047,7 +1054,10 @@ function RegFormStep3Athletes({
           )}
         </div>
       </div>
-      <div className="text-sm font-medium text-slate-700 mb-2">选择报名队员（{selectedAthleteIds.length}/{maxAthletes}）</div>
+      <div className="text-sm font-medium text-slate-700 mb-2">
+        选择报名队员（{selectedAthleteIds.length}/{maxAthletes}）
+        {minAthletes > 0 && <span className="ml-2 text-xs text-amber-600">至少需选 {minAthletes} 人</span>}
+      </div>
       {!hasGroup ? (
         <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 px-4 py-5 text-center text-sm text-amber-700">
           请先选择报名组别，系统将自动筛选符合该组别的运动员
