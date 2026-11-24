@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Edit2, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronDown, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,7 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
   const [events, setEvents] = useState<Event[]>([]);
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
   const [groupMap, setGroupMap] = useState<Record<string, EventGroup[]>>({});
+  const [movingEvent, setMovingEvent] = useState(false);
 
   // ====== 预设选择状态 ======
   // 分组预设对话框
@@ -118,6 +119,25 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
       toast.success('项目已更新');
     } catch (err: any) {
       toast.error('保存失败：' + (err?.message || '未知错误'));
+    }
+  };
+
+  // 手动调整项目出场顺序：与相邻项目交换位置，order_index 重排为连续值
+  const moveEvent = async (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= events.length || movingEvent) return;
+    const next = [...events];
+    [next[index], next[target]] = [next[target], next[index]];
+    const normalized = next.map((ev, i) => ({ ...ev, orderIndex: i }));
+    setMovingEvent(true);
+    try {
+      await Promise.all(normalized.map((ev) => eventStore.update(ev.id, { orderIndex: ev.orderIndex })));
+      setEvents(normalized);
+      toast.success('项目顺序已调整，请到「出场顺序」页重新生成以生效');
+    } catch (err: any) {
+      toast.error('排序失败：' + (err?.message || '未知错误'));
+    } finally {
+      setMovingEvent(false);
     }
   };
 
@@ -369,6 +389,7 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
             <div>
               <span className="text-sm font-semibold text-slate-700">竞赛项目</span>
               <span className="text-xs text-slate-400 ml-2">{events.length} 项</span>
+              <p className="text-xs text-slate-400 mt-0.5">用 ↑ ↓ 调整项目顺序（即出场顺序）；改后请到「出场顺序」页重新生成</p>
             </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={openEvPresetDialog} className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
@@ -382,12 +403,16 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
               暂无项目，点击「从预设添加项目」开始配置
             </div>
           ) : (
-            events.map(ev => (
+            events.map((ev, idx) => (
               <EventListCard
                 key={ev.id}
                 event={ev}
                 groups={groupMap[ev.id] || []}
                 expanded={expandedEvent === ev.id}
+                index={idx}
+                total={events.length}
+                onMove={moveEvent}
+                moving={movingEvent}
                 onToggleExpand={() => setExpandedEvent(prev => prev === ev.id ? null : ev.id)}
                 onAddGroups={() => openGrpPresetDialog(ev.id)}
                 onEditEvent={() => openEvEditDialog(ev)}
@@ -475,6 +500,10 @@ interface EventListCardProps {
   event: Event;
   groups: EventGroup[];
   expanded: boolean;
+  index: number;
+  total: number;
+  onMove: (index: number, direction: -1 | 1) => void;
+  moving: boolean;
   onToggleExpand: () => void;
   onAddGroups: () => void;
   onEditEvent: () => void;
@@ -484,7 +513,7 @@ interface EventListCardProps {
 }
 
 function EventListCard({
-  event, groups, expanded,
+  event, groups, expanded, index, total, onMove, moving,
   onToggleExpand, onAddGroups, onEditEvent, onDeleteEvent,
   onEditGroup, onDeleteGroup,
 }: EventListCardProps) {
@@ -507,6 +536,26 @@ function EventListCard({
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex flex-col gap-0.5">
+              <button
+                type="button"
+                onClick={() => onMove(index, -1)}
+                disabled={index === 0 || moving}
+                title="上移（提前出场）"
+                className="w-7 h-6 flex items-center justify-center rounded border border-slate-200 text-slate-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500"
+              >
+                <ArrowUp className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onMove(index, 1)}
+                disabled={index === total - 1 || moving}
+                title="下移（延后出场）"
+                className="w-7 h-6 flex items-center justify-center rounded border border-slate-200 text-slate-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500"
+              >
+                <ArrowDown className="w-3.5 h-3.5" />
+              </button>
+            </div>
             <Button size="sm" variant="ghost" onClick={onAddGroups} className="text-xs gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
               <Plus className="w-3.5 h-3.5" />预设分组
             </Button>
