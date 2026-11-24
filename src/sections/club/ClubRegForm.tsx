@@ -191,6 +191,9 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
   // 截止/未开放后整页锁定：所有填报交互禁用（admin 解锁修改除外）
   const deadlineBlocked = !!deadlineInfo && !deadlineInfo.ok && !adminEditUnlocked;
 
+  // 未签署责任书 → 项目选择区整体灰化不可操作（仅新报名；已锁定报名/管理员解锁不卡）
+  const agreementBlocked = !submittedLocked && !adminEditUnlocked && (agreementLoading || !agreement);
+
   useEffect(() => {
     setLoading(true);
     setSubmittedLocked(false);
@@ -835,7 +838,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
                   groupsMap={groupsMap}
                   isEventFull={isEventFull}
                   onPickEvent={openReferenceEvent}
-                  disabled={(submittedLocked && !adminEditUnlocked) || deadlineBlocked}
+                  disabled={(submittedLocked && !adminEditUnlocked) || deadlineBlocked || agreementBlocked}
                 />
               )}
 
