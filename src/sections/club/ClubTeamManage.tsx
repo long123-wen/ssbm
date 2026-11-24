@@ -43,6 +43,10 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  // 身份证照片（必填，敏感信息，走需登录鉴权的 storage 路径）
+  const [idCardFile, setIdCardFile] = useState<File | null>(null);
+  const [idCardPreview, setIdCardPreview] = useState<string | null>(null);
+  const [idCardPhotoUploading, setIdCardPhotoUploading] = useState(false);
   const [deleteAthleteId, setDeleteAthleteId] = useState<string | null>(null);
   const [deleteCoachId, setDeleteCoachId] = useState<string | null>(null);
   const [deleteLeaderId, setDeleteLeaderId] = useState<string | null>(null);
@@ -161,6 +165,27 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
     }
   };
 
+  const handleIdCardPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const validTypes = ['image/jpeg', 'image/png'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('身份证照片仅支持 JPG 或 PNG 格式');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('身份证照片大小不能超过 2MB');
+      return;
+    }
+    setIdCardFile(file);
+    setIdCardPreview(URL.createObjectURL(file));
+  };
+
+  const clearIdCardPhoto = () => {
+    setIdCardFile(null);
+    setIdCardPreview(null);
+  };
+
   const saveAthlete = async () => {
     if (!aForm.name || !aForm.birthDate) return;
 
@@ -175,8 +200,19 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
       }
     }
 
+    // 身份证照片必填：新增运动员必须有，编辑时若已有旧照片或本次新选也可通过
+    if (!aEdit && !idCardFile) {
+      toast.error('请上传身份证照片（必填）');
+      return;
+    }
+    if (aEdit && !idCardFile && !aEdit.idCardPhoto) {
+      toast.error('请上传身份证照片（必填）');
+      return;
+    }
+
     try {
       let avatarUrl = aEdit?.avatarUrl || undefined;
+      let idCardPhoto = aEdit?.idCardPhoto || undefined;
 
       // 上传照片
       if (avatarFile) {
@@ -225,11 +261,45 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
         avatarUrl = undefined;
       }
 
+      // 上传身份证照片（敏感）：路径 idcard/<clubId>/... 与头像区分，复用同一 bucket 的登录鉴权
+      if (idCardFile) {
+        setIdCardPhotoUploading(true);
+        try {
+          const fileExt = idCardFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+          // 证件照保留较高分辨率（最长边 1200px），确保文字清晰
+          const compressed = await compressImageFile(idCardFile, 1200, 0.85);
+          const fileName = `idcard/${clubId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
+          const { data: uploadData, error: uploadErr } = await supabase.storage
+            .from('athlete-avatars')
+            .upload(fileName, compressed, { upsert: true, contentType: compressed.type || 'image/jpeg' });
+          if (uploadErr) throw uploadErr;
+          const { data: urlData } = supabase.storage.from('athlete-avatars').getPublicUrl(fileName);
+          idCardPhoto = urlData.publicUrl;
+          // 删除旧证件照（后台清理，不阻塞）
+          if (aEdit?.idCardPhoto && aEdit.idCardPhoto.includes('athlete-avatars')) {
+            try {
+              const oldPath = new URL(aEdit.idCardPhoto).pathname.split('/athlete-avatars/')[1];
+              if (oldPath) void supabase.storage.from('athlete-avatars').remove([oldPath]);
+            } catch { /* 忽略 */ }
+          }
+        } catch (uploadErr: any) {
+          console.warn('身份证照片上传失败，回退到 base64:', uploadErr.message);
+          const reader = new FileReader();
+          idCardPhoto = await new Promise<string>((resolve) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(idCardFile);
+          });
+        } finally {
+          setIdCardPhotoUploading(false);
+        }
+      }
+
       if (aEdit) {
         await athleteStore.update(aEdit.id, {
           ...aForm,
           gender: aForm.gender as any,
           avatarUrl: avatarUrl as any,
+          idCardPhoto: idCardPhoto as any,
         } as any);
       } else {
         await athleteStore.create({
@@ -239,6 +309,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
           ...aForm,
           gender: aForm.gender as any,
           avatarUrl: avatarUrl as any,
+          idCardPhoto: idCardPhoto as any,
         } as any);
       }
       setADialog(false); load();
@@ -294,6 +365,8 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
     setIdCardTouched(false);
     setAvatarFile(null);
     setAvatarPreview(a?.avatarUrl || null);
+    setIdCardFile(null);
+    setIdCardPreview(a?.idCardPhoto || null);
     setADialog(true);
   };
 
@@ -654,6 +727,35 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
               <p className="text-xs text-slate-400">免冠照片（JPG/PNG，≤2MB）</p>
             </div>
 
+            {/* 身份证照片上传（必填，敏感信息） */}
+            <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+              <div className="flex items-center gap-3">
+                <div className="relative shrink-0">
+                  {idCardPreview ? (
+                    <img src={idCardPreview} alt="身份证照片" className="w-16 h-12 rounded object-cover border border-amber-300 bg-white" />
+                  ) : (
+                    <div className="w-16 h-12 rounded border-2 border-dashed border-amber-300 bg-white flex items-center justify-center">
+                      <ImageIcon className="w-5 h-5 text-amber-300" />
+                    </div>
+                  )}
+                  {idCardPreview && (
+                    <button onClick={clearIdCardPhoto} className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white shadow">
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <Label className="text-amber-900">身份证照片 <span className="text-red-500">*</span></Label>
+                  <p className="text-[11px] text-amber-700/80 mt-0.5">上传身份证人像面，需清晰可辨（JPG/PNG，≤2MB）</p>
+                  <label className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 cursor-pointer">
+                    <Camera className="w-3.5 h-3.5" />
+                    {idCardPreview ? '重新上传' : '点击上传'}
+                    <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleIdCardPhotoChange} />
+                  </label>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div><Label>姓名 *</Label><Input className="mt-1 h-11" value={aForm.name} onChange={e => setAForm(p => ({ ...p, name: e.target.value }))} /></div>
               <div>
@@ -709,9 +811,9 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
             <Button
               onClick={saveAthlete}
               className="bg-blue-600 hover:bg-blue-700 text-white"
-              disabled={avatarUploading || (idCardTouched && !!idCardError)}
+              disabled={avatarUploading || idCardPhotoUploading || (idCardTouched && !!idCardError)}
             >
-              {avatarUploading ? '上传中...' : '保存'}
+              {avatarUploading || idCardPhotoUploading ? '上传中...' : '保存'}
             </Button>
           </DialogFooter>
         </DialogContent>

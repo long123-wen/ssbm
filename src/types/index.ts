@@ -117,6 +117,7 @@ export interface Athlete {
   birthDate: string;
   idCard: string;          // 身份证号（必填）
   avatarUrl?: string;      // 运动员照片URL或base64
+  idCardPhoto?: string;    // 身份证照片（敏感，需登录访问）
 }
 
 // ---- 报名记录 ----

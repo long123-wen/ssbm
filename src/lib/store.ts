@@ -658,6 +658,7 @@ export const athleteStore = {
       club_id: input.clubId, name: input.name, gender: input.gender,
       birth_date: input.birthDate, id_card: input.idCard,
       avatar_url: input.avatarUrl || null,
+      id_card_photo: input.idCardPhoto || null,
     };
     // competition_id 列可能尚未创建（需在 Supabase SQL Editor 执行迁移）
     if (input.competitionId) insertRow.competition_id = input.competitionId;
@@ -688,6 +689,7 @@ export const athleteStore = {
         club_id: input.clubId, name: input.name, gender: input.gender,
         birth_date: input.birthDate, id_card: input.idCard,
         avatar_url: input.avatarUrl || null,
+        id_card_photo: input.idCardPhoto || null,
       };
       if (includeCompId && input.competitionId) row.competition_id = input.competitionId;
       if (includeTeamProfileId && input.teamProfileId) row.team_profile_id = input.teamProfileId;
@@ -715,6 +717,7 @@ export const athleteStore = {
     if (input.birthDate !== undefined) patch.birth_date = input.birthDate;
     if (input.idCard !== undefined) patch.id_card = input.idCard;
     if (input.avatarUrl !== undefined) patch.avatar_url = input.avatarUrl;
+    if (input.idCardPhoto !== undefined) patch.id_card_photo = input.idCardPhoto;
 
     const { data } = await supabase.from(TABLES.athletes).update(patch).eq('id', id).select().single();
     return data ? mapAthlete(data) : null;
@@ -1161,10 +1164,10 @@ function mapCoachWithClub(row: Record<string, unknown>, clubMap: Map<string, str
   return { id: row.id as string, clubId: row.club_id as string, competitionId: (row.competition_id as string) || undefined, teamProfileId: (row.team_profile_id as string) || undefined, clubName: clubMap.get(row.club_id as string) || '未知俱乐部', name: row.name as string, phone: row.phone as string };
 }
 function mapAthlete(row: Record<string, unknown>): Athlete {
-  return { id: row.id as string, clubId: row.club_id as string, competitionId: (row.competition_id as string) || undefined, teamProfileId: (row.team_profile_id as string) || undefined, name: row.name as string, gender: row.gender as Gender, birthDate: row.birth_date as string, idCard: row.id_card as string, avatarUrl: row.avatar_url as string };
+  return { id: row.id as string, clubId: row.club_id as string, competitionId: (row.competition_id as string) || undefined, teamProfileId: (row.team_profile_id as string) || undefined, name: row.name as string, gender: row.gender as Gender, birthDate: row.birth_date as string, idCard: row.id_card as string, avatarUrl: row.avatar_url as string, idCardPhoto: (row.id_card_photo as string) || undefined };
 }
 function mapAthleteWithClub(row: Record<string, unknown>, clubMap: Map<string, string>): Athlete {
-  return { id: row.id as string, clubId: row.club_id as string, competitionId: (row.competition_id as string) || undefined, teamProfileId: (row.team_profile_id as string) || undefined, clubName: clubMap.get(row.club_id as string) || '未知俱乐部', name: row.name as string, gender: row.gender as Gender, birthDate: row.birth_date as string, idCard: row.id_card as string, avatarUrl: row.avatar_url as string };
+  return { id: row.id as string, clubId: row.club_id as string, competitionId: (row.competition_id as string) || undefined, teamProfileId: (row.team_profile_id as string) || undefined, clubName: clubMap.get(row.club_id as string) || '未知俱乐部', name: row.name as string, gender: row.gender as Gender, birthDate: row.birth_date as string, idCard: row.id_card as string, avatarUrl: row.avatar_url as string, idCardPhoto: (row.id_card_photo as string) || undefined };
 }
 function mapRegistration(row: Record<string, unknown>): Registration {
   const rawAthletes = row.athletes;

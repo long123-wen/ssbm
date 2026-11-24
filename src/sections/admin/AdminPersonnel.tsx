@@ -3,7 +3,7 @@ import { compressImageFile } from '@/lib/imageCompress';
 import {
   Search, Edit2, User, GraduationCap, UserCheck, Building2,
   X, Camera, ImageIcon, ChevronRight, ChevronDown, Trash2, AlertTriangle,
-  Phone, MapPin, UsersRound
+  Phone, MapPin, UsersRound, IdCard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -614,6 +614,7 @@ export default function AdminPersonnel({ competitionId }: Props) {
 function PersonRow({ item, type, onEdit, onDelete }: {
   item: any; type: string; onEdit: () => void; onDelete: () => void;
 }) {
+  const [idPhotoOpen, setIdPhotoOpen] = useState(false);
   const colorMap: Record<string, { bg: string; avatar: string; text: string; edit: string; del: string }> = {
     athlete: { bg: 'bg-blue-50/50', avatar: 'bg-blue-500', text: 'text-blue-600', edit: 'hover:bg-blue-100', del: 'hover:bg-red-100' },
     coach: { bg: 'bg-emerald-50/50', avatar: 'bg-emerald-500', text: 'text-emerald-600', edit: 'hover:bg-emerald-100', del: 'hover:bg-red-100' },
@@ -638,9 +639,27 @@ function PersonRow({ item, type, onEdit, onDelete }: {
         <span className="ml-2">{extra}</span>
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {type === 'athlete' && (item as Athlete).idCardPhoto && (
+          <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px] text-amber-600 hover:bg-amber-100" title="查看身份证照片" onClick={() => setIdPhotoOpen(true)}>
+            <IdCard className="w-3 h-3" />
+          </Button>
+        )}
         <Button size="sm" variant="ghost" className={`h-6 px-1.5 text-[10px] ${c.text} ${c.edit}`} onClick={onEdit}><Edit2 className="w-2.5 h-2.5" /></Button>
         <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px] text-red-500" onClick={onDelete}><Trash2 className="w-2.5 h-2.5" /></Button>
       </div>
+
+      {/* 身份证照片大图（需登录鉴权，admin 可读全部） */}
+      <Dialog open={idPhotoOpen} onOpenChange={setIdPhotoOpen}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>身份证照片 · {item.name}</DialogTitle>
+            <DialogDescription>敏感信息，仅限管理后台查看，请勿外传</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center bg-slate-50 rounded-lg p-3 overflow-auto">
+            <img src={(item as Athlete).idCardPhoto} alt={`${item.name} 身份证照片`} className="max-w-full h-auto rounded border border-slate-200" />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -41,7 +41,7 @@ export const TABLES = {
     columns: ['id','club_id','competition_id','team_profile_id','name','phone','certificate','level','created_at','updated_at'], ownerColumn: 'club_id',
   },
   athletes: {
-    columns: ['id','club_id','competition_id','team_profile_id','name','gender','birth_date','id_card','phone','avatar_url','created_at','updated_at'], ownerColumn: 'club_id',
+    columns: ['id','club_id','competition_id','team_profile_id','name','gender','birth_date','id_card','phone','avatar_url','id_card_photo','created_at','updated_at'], ownerColumn: 'club_id',
   },
   registrations: {
     columns: ['id','competition_id','club_id','team_profile_id','club_name','event_id','event_name','group_id','group_name','athletes','coach_id','coach_name','status','reject_reason','start_order','bib_number','created_at','updated_at'],
