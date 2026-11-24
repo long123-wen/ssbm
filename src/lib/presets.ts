@@ -6,7 +6,7 @@
 /**
  * 命名体系（同一场比赛只能使用其中一套，不可混用）
  *  - 'zh'：中文命名（幼儿组 / 儿童甲组 / 少年甲组 ... 成年组）
- *  - 'u' ：U 系列命名（U6 / U9 / U12 / U15 / U18 / 19+ / 26+）
+ *  - 'u' ：U 系列命名（U6 / U9 / U12 / U15 / U18 / 青年组19+ / 26+）
  *  - 'student'：学生组命名（小学甲组 / 小学乙组 / 初中组 / 高中组，按年级划分）
  *  - 'common'：通用组别（特教组 / 亲子组 / 不分组别），所有体系均可共存
  */
@@ -159,7 +159,7 @@ export const PRESET_AGE_GROUPS: PresetGroup[] = [
   //   U12 = 儿童乙组（10-12 岁）
   //   U15 = 少年甲组（13-15 岁）
   //   U18 = 少年乙组（16-18 岁）
-  //   19+ = 青年组（19-25 岁）
+  //   青年组19+ = 原 19+（19-25 岁）
   //   26+ = 成年组（26 岁及以上）
   // 出生日期范围仍按赛事年份动态推算（见下方 birthRangeForAge）
   // ========================
@@ -168,7 +168,7 @@ export const PRESET_AGE_GROUPS: PresetGroup[] = [
   { id: 'age_u_12', namingSystem: 'u', name: 'U12', type: 'age', ageMin: 10, ageMax: 12, description: '10-12 岁' },
   { id: 'age_u_15', namingSystem: 'u', name: 'U15', type: 'age', ageMin: 13, ageMax: 15, description: '13-15 岁' },
   { id: 'age_u_18', namingSystem: 'u', name: 'U18', type: 'age', ageMin: 16, ageMax: 18, description: '16-18 岁' },
-  { id: 'age_u_19', namingSystem: 'u', name: '19+', type: 'age', ageMin: 19, ageMax: 25, description: '19-25 岁' },
+  { id: 'age_u_19', namingSystem: 'u', name: '青年组19+', type: 'age', ageMin: 19, ageMax: 25, description: '19-25 岁' },
   { id: 'age_u_26', namingSystem: 'u', name: '26+', type: 'age', ageMin: 26, description: '26 岁及以上' },
 
   // ========================
