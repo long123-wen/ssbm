@@ -364,8 +364,20 @@ export const PRESET_EVENTS: PresetEvent[] = [
 ];
 
 // ========================
+// 市民组参赛单位类别（机关组 / 县市组 / 协会组）
+// 作为组名细分层级（如"青年组机关男子组"），仅展示与统计，不参与报名资格限制
+// ========================
+export const PRESET_UNIT_CATEGORIES = [
+  { id: 'agency', name: '机关', fullName: '机关组' },
+  { id: 'county', name: '县市', fullName: '县市组' },
+  { id: 'association', name: '协会', fullName: '协会组' },
+] as const;
+export type UnitCategoryId = typeof PRESET_UNIT_CATEGORIES[number]['id'];
+
+// ========================
 // 组合式组别预设（年龄+性别 = 实际比赛组别）
 // 例如：儿童乙组 + 男子组 = 儿童乙组男子组
+// 市民组额外细分：年龄+单位类别+性别 = 青年组机关男子组
 // ========================
 export interface CombinedGroupPreset {
   id: string;
@@ -387,6 +399,8 @@ export interface CombinedGroupPreset {
   isStandalone: boolean;
   /** 所属命名体系（'zh' 中文 / 'u' U系列 / 'common' 通用） */
   namingSystem: NamingSystem;
+  /** 市民组单位类别细分（机关/县市/协会），仅用于展示与统计 */
+  unitCategory?: UnitCategoryId;
 }
 
 /** 生成所有组合式组别（年龄组 × 性别分组） */
@@ -483,6 +497,35 @@ function buildCombinedGroups(): CombinedGroupPreset[] {
         isStandalone: true,
         namingSystem: age.namingSystem || 'common',
       });
+    }
+  }
+
+  // 市民组（青年/中年/老年）额外细分：单位类别(机关/县市/协会) × 性别 = 每组 9 个
+  // 命名形如「青年组机关男子组」；单位类别已体现在组名，仅展示与统计，不改报名资格
+  const citizenAgeIds = new Set(['age_sc_youth', 'age_sc_middle', 'age_sc_senior']);
+  for (const age of PRESET_AGE_GROUPS) {
+    if (!citizenAgeIds.has(age.id)) continue;
+    for (const unit of PRESET_UNIT_CATEGORIES) {
+      for (const gender of [
+        { key: 'm', preset: malePreset, value: 'male', label: '男子组', desc: '' },
+        { key: 'f', preset: femalePreset, value: 'female', label: '女子组', desc: '' },
+        { key: 'x', preset: mixedPreset, value: 'mixed', label: '混合组', desc: ' · 男女混合' },
+      ] as const) {
+        result.push({
+          id: `comb_${age.id}_unit_${unit.id}_gender_${gender.key}`,
+          name: `${age.name}${unit.name}${gender.label}`,
+          ageGroup: age,
+          genderGroup: gender.preset,
+          type: 'age',
+          gender: gender.value,
+          ageMin: age.ageMin,
+          ageMax: age.ageMax,
+          description: `${age.description || ''} · ${unit.fullName}${gender.desc}`,
+          isStandalone: false,
+          namingSystem: age.namingSystem || 'student_citizen',
+          unitCategory: unit.id,
+        });
+      }
     }
   }
   return result;
