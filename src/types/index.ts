@@ -192,6 +192,20 @@ export interface TeamProfile {
   updatedAt: string;
 }
 
+// ---- 责任书签署记录（队伍级，每队每赛事一份） ----
+export interface LiabilityAgreement {
+  id: string;
+  clubId: string;
+  competitionId: string;
+  teamProfileId: string;
+  signerName: string;       // 签署人（领队/教练）
+  signerRole: string;       // 签署人身份：leader / coach / representative
+  agreementVersion: string; // 责任书文本版本
+  signedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ---- 统计数据 ----
 export interface CompetitionStats {
   totalClubs: number;

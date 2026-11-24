@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import {
   competitionStore, eventStore, groupStore,
-  athleteStore, registrationStore, checkLimitViolations, limitConfigStore
+  athleteStore, registrationStore, checkLimitViolations, limitConfigStore, liabilityAgreementStore
 } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { validateIdCard, extractBirthDate, extractGender } from '@/lib/idCardValidator';
@@ -17,7 +17,9 @@ import { isGroupEligible } from '@/lib/groupMatcher';
 import { CenterAlert } from '@/components/CenterAlert';
 import { compressImageFile } from '@/lib/imageCompress';
 import { evaluateDeadline, formatDeadlineRemaining, formatDeadlineValue, isCompetitionRegOpen } from '@/lib/deadline';
-import type { Competition, Event, EventGroup, Athlete, ClubAccount } from '@/types';
+import { AGREEMENT_VERSION } from '@/lib/liabilityAgreement';
+import LiabilityAgreementDialog from '@/components/LiabilityAgreementDialog';
+import type { Competition, Event, EventGroup, Athlete, ClubAccount, LiabilityAgreement } from '@/types';
 
 interface Props { club: ClubAccount; competitionId: string; teamProfileId: string }
 
@@ -117,6 +119,11 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
 
   // 已提交到后台的报名记录（用于重复检测 + 赛事锁定）
   const [existingRegs, setExistingRegs] = useState<any[]>([]);
+
+  // 责任书签署状态（队伍级，每队每赛事一份；已报名/管理员解锁修改不卡）
+  const [agreement, setAgreement] = useState<LiabilityAgreement | null>(null);
+  const [agreementLoading, setAgreementLoading] = useState(true);
+  const [showAgreementDialog, setShowAgreementDialog] = useState(false);
 
   // 参考流程：先选项目/组别，再选择队员，最后统一提交
   const [referenceCategory, setReferenceCategory] = useState('全部');
@@ -232,6 +239,12 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
 
   useEffect(() => {
     if (!selCompId) return;
+    // 加载本队责任书签署状态
+    setAgreementLoading(true);
+    liabilityAgreementStore.getByTeam(selCompId, teamProfileId)
+      .then(setAgreement)
+      .catch(() => setAgreement(null))
+      .finally(() => setAgreementLoading(false));
     registrationStore.getEditState(selCompId, teamProfileId).then(state => {
       setAdminEditUnlocked(state.unlocked);
       if (state.unlocked) setSubmittedLocked(false);
@@ -406,6 +419,14 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     if (!adminEditUnlocked && deadlineInfo && !deadlineInfo.ok) {
       const reason = deadlineInfo.reason || 'DEADLINE_PASSED';
       return showAlert(reason === 'COMPETITION_NOT_OPEN' ? '该赛事当前未开放报名' : '报名已截止，无法提交');
+    }
+    // 责任书卡点：仅新报名（create）要求先签署；已锁定报名和管理员解锁修改不卡
+    if (!adminEditUnlocked && !submittedLocked) {
+      if (agreementLoading) return showAlert('正在核验责任书签署状态，请稍后再试');
+      if (!agreement) {
+        setShowAgreementDialog(true);
+        return showAlert('报名前请先签署《自愿参赛安全承诺责任书》，签署后再提交');
+      }
     }
 
     // 最终限报校验：即使旧页面、缓存草稿或手工请求绕过即时提示，也不能提交超项清单。
@@ -719,6 +740,16 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
         message={alertBox?.message || ''}
         onClose={() => setAlertBox(null)}
       />
+      <LiabilityAgreementDialog
+        open={showAgreementDialog}
+        clubId={club.id}
+        competitionId={selCompId}
+        teamProfileId={teamProfileId}
+        initialName={agreement?.signerName || ''}
+        initialRole={agreement?.signerRole || 'leader'}
+        onClose={() => setShowAgreementDialog(false)}
+        onSigned={(record) => { setAgreement(record); setShowAgreementDialog(false); }}
+      />
       <div className="mb-5 sm:mb-6 lg:flex lg:items-end lg:justify-between lg:gap-6">
         <div>
           <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-800 tracking-tight">在线报名</h2>
@@ -731,6 +762,32 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
           <span>{tempRegs.length} 项已填报</span>
         </div>
       </div>
+
+      {/* 责任书签署状态条：仅新报名需要签署；已报名锁定 / 管理员解锁修改不提示 */}
+      {!submittedLocked && (
+        <div className={`mb-5 rounded-xl border px-4 py-3 flex flex-wrap items-center gap-2.5 text-sm ${
+          agreement
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+            : 'bg-amber-50 border-amber-200 text-amber-700'
+        }`}>
+          {agreement ? (
+            <>
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span className="font-medium">责任书已签署</span>
+              <span className="text-xs opacity-80">签署人：{agreement.signerName} · {new Date(agreement.signedAt).toLocaleString('zh-CN')}</span>
+            </>
+          ) : (
+            <>
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span className="font-medium">报名前须先签署《自愿参赛安全承诺责任书》</span>
+              <span className="text-xs opacity-80">由领队/教练代表本队签署一次，全队生效</span>
+              <Button size="sm" onClick={() => setShowAgreementDialog(true)} className="ml-auto bg-amber-500 hover:bg-amber-600 text-white h-7 text-xs gap-1.5">
+                去签署
+              </Button>
+            </>
+          )}
+        </div>
+      )}
 
 
       {athletes.length === 0 && !loading && (

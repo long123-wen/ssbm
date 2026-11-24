@@ -414,4 +414,5 @@ export const TABLES = {
   admin_users: 'admin_users',
   team_profiles: 'team_profiles',
   limit_configs: 'limit_configs',
+  liability_agreements: 'liability_agreements',
 } as const;

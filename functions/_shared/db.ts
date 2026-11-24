@@ -66,13 +66,17 @@ export const TABLES = {
   limit_configs: {
     columns: ['id','competition_id','scope','target_id','max_registrations','created_at','updated_at'], clubRead: true,
   },
+  liability_agreements: {
+    columns: ['id','club_id','competition_id','team_profile_id','signer_name','signer_role','agreement_version','signed_at','created_at','updated_at'],
+    ownerColumn: 'club_id',
+  },
 } as const satisfies Record<string, TableConfig>;
 
 const IDENTIFIER = /^[a-z_][a-z0-9_]*$/;
 const MAX_ROWS = 1000;
 // Registrations have stateful domain rules and are writeable only via dedicated
 // workflow endpoints. Generic data access remains read-only for them.
-const CLUB_TABLES = new Set<TableName>(['clubs','team_profiles','team_leaders','coaches','athletes','registrations','scorecard_entries','order_book_entries']);
+const CLUB_TABLES = new Set<TableName>(['clubs','team_profiles','team_leaders','coaches','athletes','registrations','scorecard_entries','order_book_entries','liability_agreements']);
 const ADMIN_ONLY_TABLES = new Set<TableName>(['admin_users','limit_configs']);
 const WORKFLOW_ONLY_WRITES = new Set<TableName>(['registrations','order_entries']);
 const SERVER_COLUMNS = new Set(['id','created_at','updated_at']);

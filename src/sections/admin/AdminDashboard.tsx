@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Trophy, LayoutDashboard, Layers, Users, FileText, Shield, LogOut, Menu, RefreshCw, UsersRound, BookOpen, SlidersHorizontal, ClipboardCheck } from 'lucide-react';
+import { Trophy, LayoutDashboard, Layers, Users, FileText, Shield, LogOut, Menu, RefreshCw, UsersRound, BookOpen, SlidersHorizontal, ClipboardCheck, FileCheck2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -12,9 +12,10 @@ import AdminAccounts from './AdminAccounts';
 import AdminPersonnel from './AdminPersonnel';
 import AdminLimits from './AdminLimits';
 import AdminScorecards from './AdminScorecards';
+import AdminAgreements from './AdminAgreements';
 import type { Competition } from '@/types';
 
-type AdminPage = 'overview' | 'events' | 'registrations' | 'orderbook' | 'scorecards' | 'accounts' | 'personnel' | 'limits';
+type AdminPage = 'overview' | 'events' | 'registrations' | 'orderbook' | 'scorecards' | 'accounts' | 'personnel' | 'limits' | 'agreements';
 
 interface Props {
   activeComp: Competition;
@@ -28,6 +29,7 @@ const navItems = [
   { id: 'registrations' as AdminPage, label: '在线报名清单', icon: Users },
   { id: 'personnel' as AdminPage, label: '注册账号及队伍管理', icon: UsersRound },
   { id: 'limits' as AdminPage, label: '限报配置', icon: SlidersHorizontal },
+  { id: 'agreements' as AdminPage, label: '责任书签署', icon: FileCheck2 },
   { id: 'orderbook' as AdminPage, label: '出场顺序', icon: FileText },
   { id: 'scorecards' as AdminPage, label: '计分表数据', icon: ClipboardCheck },
   { id: 'accounts' as AdminPage, label: '管理员账号', icon: Shield },
@@ -170,6 +172,7 @@ export default function AdminDashboard({ activeComp, onChangeComp, onLogout }: P
           {page === 'registrations' && <AdminRegistrations competitionId={activeComp.id} eventFilter={eventFilter} />}
           {page === 'personnel' && <AdminPersonnel competitionId={activeComp.id} />}
           {page === 'limits' && <AdminLimits competitionId={activeComp.id} />}
+          {page === 'agreements' && <AdminAgreements competitionId={activeComp.id} />}
           {page === 'orderbook' && <AdminOrderBook competitionId={activeComp.id} />}
           {page === 'scorecards' && <AdminScorecards competitionId={activeComp.id} />}
           {page === 'accounts' && <AdminAccounts />}

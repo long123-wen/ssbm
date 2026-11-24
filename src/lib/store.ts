@@ -6,7 +6,7 @@ import { supabase, TABLES, apiAuth, apiWorkflow } from '@/lib/supabase';
 import { toast } from 'sonner';
 import type {
   Competition, Event, EventGroup, ClubAccount,
-  TeamLeader, Coach, Athlete, Registration, OrderEntry, AdminUser, TeamProfile, LimitConfig, UserRole, Gender, GroupType, RegistrationStatus,
+  TeamLeader, Coach, Athlete, Registration, OrderEntry, AdminUser, TeamProfile, LimitConfig, UserRole, Gender, GroupType, RegistrationStatus, LiabilityAgreement,
 } from '@/types';
 
 // ========== 工具函数 ==========
@@ -1364,3 +1364,71 @@ export async function checkLimitViolations(
   }
   return errors;
 }
+
+// ========== 责任书签署记录（队伍级，每队每赛事一份） ==========
+function mapLiabilityAgreement(r: Record<string, unknown>): LiabilityAgreement {
+  return {
+    id: String(r.id || ''),
+    clubId: String(r.club_id || ''),
+    competitionId: String(r.competition_id || ''),
+    teamProfileId: String(r.team_profile_id || ''),
+    signerName: String(r.signer_name || ''),
+    signerRole: String(r.signer_role || ''),
+    agreementVersion: String(r.agreement_version || ''),
+    signedAt: String(r.signed_at || ''),
+    createdAt: String(r.created_at || ''),
+    updatedAt: String(r.updated_at || ''),
+  };
+}
+
+export const liabilityAgreementStore = {
+  /** 查询某队伍在某赛事下的签署记录（未签署返回 null） */
+  async getByTeam(competitionId: string, teamProfileId: string): Promise<LiabilityAgreement | null> {
+    const { data, error } = await supabase.from(TABLES.liability_agreements)
+      .select('*').eq('competition_id', competitionId).eq('team_profile_id', teamProfileId).maybeSingle();
+    if (error && error.message?.includes('does not exist')) return null;
+    if (error) throw error;
+    return data ? mapLiabilityAgreement(data as Record<string, unknown>) : null;
+  },
+
+  /** 查询某赛事下全部签署记录（管理端用） */
+  async getByCompetition(competitionId: string): Promise<LiabilityAgreement[]> {
+    const { data, error } = await supabase.from(TABLES.liability_agreements)
+      .select('*').eq('competition_id', competitionId).order('signed_at', { ascending: false });
+    if (error && error.message?.includes('does not exist')) return [];
+    if (error) throw error;
+    return (data || []).map((r: Record<string, unknown>) => mapLiabilityAgreement(r));
+  },
+
+  /** 签署：一队一签，已签则直接返回已有记录 */
+  async sign(input: {
+    clubId: string;
+    competitionId: string;
+    teamProfileId: string;
+    signerName: string;
+    signerRole: string;
+    agreementVersion: string;
+  }): Promise<LiabilityAgreement> {
+    const existing = await this.getByTeam(input.competitionId, input.teamProfileId);
+    if (existing) return existing;
+    const now = new Date().toISOString();
+    const { data, error } = await supabase.from(TABLES.liability_agreements).insert({
+      club_id: input.clubId,
+      competition_id: input.competitionId,
+      team_profile_id: input.teamProfileId,
+      signer_name: input.signerName,
+      signer_role: input.signerRole,
+      agreement_version: input.agreementVersion,
+      signed_at: now,
+    }).select().single();
+    if (error) {
+      // 并发重复签署撞唯一约束 → 回读已有记录
+      if (error.message?.includes('UNIQUE') || error.message?.includes('duplicate')) {
+        const raced = await this.getByTeam(input.competitionId, input.teamProfileId);
+        if (raced) return raced;
+      }
+      throw error;
+    }
+    return mapLiabilityAgreement(data as Record<string, unknown>);
+  },
+};

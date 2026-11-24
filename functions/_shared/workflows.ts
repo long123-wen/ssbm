@@ -195,15 +195,33 @@ async function assertLimits(env: Env, input: ClubRegistrationInput, event: Row, 
     if (Number(count?.total || 0) >= Number(limit.max_registrations)) throw new HttpError(409, 'Registration quota has been reached', 'REGISTRATION_QUOTA_EXCEEDED');
   }
 }
+/**
+ * 责任书签署兜底校验（仅新报名 create 路径启用）：
+ * 队伍未签署《自愿参赛安全承诺责任书》时拒绝创建报名，防止前端绕过。
+ * 已报名锁定 / 管理员解锁修改 / 重提 不调用此校验。
+ */
+async function assertAgreementSigned(env: Env, actor: SessionPrincipal, competitionId: string, teamProfileId?: string): Promise<void> {
+  if (!teamProfileId) {
+    throw new HttpError(422, '报名前请先以队伍为单位签署《自愿参赛安全承诺责任书》', 'AGREEMENT_NOT_SIGNED');
+  }
+  const signed = await env.REGISTRATION_DB.prepare(
+    'SELECT 1 FROM liability_agreements WHERE club_id = ? AND competition_id = ? AND team_profile_id = ? LIMIT 1',
+  ).bind(actor.userId, competitionId, teamProfileId).first<Row>();
+  if (!signed) {
+    throw new HttpError(422, '报名前请先以队伍为单位签署《自愿参赛安全承诺责任书》', 'AGREEMENT_NOT_SIGNED');
+  }
+}
+
 async function buildClubRegistration(
   env: Env,
   actor: SessionPrincipal,
   input: ClubRegistrationInput,
   excludeRegistrationIds: string[] = [],
   quotaReservations?: Map<string, number>,
-  options: { lockDeadline?: boolean } = {},
+  options: { lockDeadline?: boolean; requireAgreement?: boolean } = {},
 ): Promise<{ registration: Row; athletes: Row[] }> {
   const competition = await getCompetition(env, input.competitionId); assertCompetitionOpen(competition, new Date(), { lockDeadline: options.lockDeadline !== false });
+  if (options.requireAgreement) await assertAgreementSigned(env, actor, input.competitionId, input.teamProfileId);
   const event = await getEventGroup(env, input.competitionId, input.eventId, input.groupId);
   const club = await env.REGISTRATION_DB.prepare('SELECT club_name FROM clubs WHERE id = ? AND is_approved = 1').bind(actor.userId).first<Row>();
   if (!club) throw new HttpError(403, 'Club is not approved', 'CLUB_NOT_ELIGIBLE');
@@ -284,7 +302,8 @@ function idempotencyKey(request: Request): string | null {
 export async function createClubRegistration(request: Request, env: Env, actor: SessionPrincipal, requestId: string): Promise<{ status: number; data: unknown }> {
   const key = idempotencyKey(request); const operation = 'club.registration.create';
   const cached = await cachedResponse(env, actor.role, actor.userId, operation, key); if (cached) return cached;
-  const prepared = await buildClubRegistration(env, actor, parseClubInput(await readJson(request, MAX_MUTATION_BYTES)));
+  // 新报名必须先签署责任书（仅 create 路径；replace/update/resubmit 不卡）
+  const prepared = await buildClubRegistration(env, actor, parseClubInput(await readJson(request, MAX_MUTATION_BYTES)), [], undefined, { requireAgreement: true });
   const now = new Date().toISOString();
   const statements: D1PreparedStatement[] = [env.REGISTRATION_DB.prepare(`INSERT INTO registrations (id,competition_id,club_id,team_profile_id,club_name,event_id,event_name,group_id,group_name,athletes,coach_id,coach_name,status,created_at,updated_at)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(prepared.registration.id, prepared.registration.competition_id, prepared.registration.club_id, prepared.registration.team_profile_id, prepared.registration.club_name, prepared.registration.event_id, prepared.registration.event_name, prepared.registration.group_id, prepared.registration.group_name, prepared.registration.athletes, prepared.registration.coach_id, prepared.registration.coach_name, 'confirmed', now, now)];
