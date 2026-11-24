@@ -299,6 +299,7 @@ export const PRESET_EVENTS: PresetEvent[] = [
   { id: 'ev_15', name: '2×30秒10人网绳接力跳',           code: 'NR-R2x30',  category: '计数赛', subCategory: '集体速度赛', minAthletes: 10, maxAthletes: 10, isIndividual: false, description: '同心协力' },
   { id: 'ev_16', name: '1分钟10人长绳集体跳',            code: 'LR-C60',    category: '计数赛', subCategory: '集体速度赛', minAthletes: 10, maxAthletes: 10, isIndividual: false },
   { id: 'ev_17', name: '1分钟10人长绳"8"字跳',           code: 'LR8-C60',   category: '计数赛', subCategory: '集体速度赛', minAthletes: 10, maxAthletes: 10, isIndividual: false },
+  { id: 'ev_40', name: '2分钟6人长绳"8"字跳',            code: 'LR8-6C120', category: '计数赛', subCategory: '集体速度赛', minAthletes: 6, maxAthletes: 6, isIndividual: false },
 
   // ---- 2. 花样赛 > 个人花样 ----
   { id: 'ev_18', name: '民族个人花样步步高（一级）',     code: 'MF-1',  category: '花样赛', subCategory: '个人花样', maxAthletes: 1, isIndividual: true },
