@@ -286,6 +286,8 @@ export const PRESET_EVENTS: PresetEvent[] = [
   { id: 'ev_6',  name: '连续三摇跳',                     code: 'TR-C',    category: '计数赛', subCategory: '个人速度赛', maxAthletes: 1, isIndividual: true, note: '12周岁以上' },
   { id: 'ev_7',  name: '30秒间隔交叉后摇跳',             code: 'IC-S30',  category: '计数赛', subCategory: '个人速度赛', maxAthletes: 1, isIndividual: true },
   { id: 'ev_8',  name: '3分钟单摇跳',                    code: 'SR-S180', category: '计数赛', subCategory: '个人速度赛', maxAthletes: 1, isIndividual: true },
+  { id: 'ev_38', name: '30秒间隔交叉跳',                 code: 'ICJ-S30', category: '计数赛', subCategory: '个人速度赛', maxAthletes: 1, isIndividual: true },
+  { id: 'ev_39', name: '1分钟并脚跳',                    code: 'PF-S60',  category: '计数赛', subCategory: '个人速度赛', maxAthletes: 1, isIndividual: true },
 
   // ---- 1. 计数赛 > 集体速度赛 ----
   { id: 'ev_9',  name: '4×30秒单摇接力',                 code: 'SR-R4x30',  category: '计数赛', subCategory: '集体速度赛', maxAthletes: 4, isIndividual: false },
