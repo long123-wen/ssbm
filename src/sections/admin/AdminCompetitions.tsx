@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Calendar, MapPin, Clock } from 'lucide-react';
+import QRCode from 'qrcode';
+import { Plus, Edit2, Trash2, Calendar, MapPin, Clock, QrCode, Download, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { competitionStore } from '@/lib/store';
 import { formatDeadlineValue, toDatetimeLocalValue } from '@/lib/deadline';
+import { buildRegistrationUrl } from '@/lib/registrationLink';
 import type { Competition, RegistrationStatus } from '@/types';
 
 const statusMap: Record<RegistrationStatus, { label: string; color: string }> = {
@@ -32,9 +34,55 @@ export default function AdminCompetitions({ activeComp }: { activeComp?: Competi
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  // 赛事专属报名二维码
+  const [qrComp, setQrComp] = useState<Competition | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [qrLoading, setQrLoading] = useState(false);
 
   const load = () => competitionStore.getAll().then(setList);
   useEffect(() => { load(); }, []);
+
+  const handleShowQr = async (comp: Competition) => {
+    setQrComp(comp);
+    setQrDataUrl('');
+    setQrLoading(true);
+    try {
+      const url = buildRegistrationUrl(comp.id);
+      const dataUrl = await QRCode.toDataURL(url, {
+        width: 520,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#0f172a', light: '#ffffff' },
+      });
+      setQrDataUrl(dataUrl);
+    } catch (err: any) {
+      toast.error('二维码生成失败：' + (err?.message || '未知错误'));
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const qrUrl = qrComp ? buildRegistrationUrl(qrComp.id) : '';
+
+  const handleCopyQrUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(qrUrl);
+      toast.success('报名链接已复制');
+    } catch {
+      toast.error('复制失败，请手动复制下方链接');
+    }
+  };
+
+  const handleDownloadQr = () => {
+    if (!qrDataUrl || !qrComp) return;
+    const a = document.createElement('a');
+    a.href = qrDataUrl;
+    const safeName = qrComp.name.replace(/[\\/:*?"<>|]/g, '_').slice(0, 40);
+    a.download = `报名二维码-${safeName}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
   const handleOpen = (comp?: Competition) => {
     if (comp) { setEditId(comp.id); setForm({ ...comp, registrationDeadline: toDatetimeLocalValue(comp.registrationDeadline) }); }
@@ -123,6 +171,9 @@ export default function AdminCompetitions({ activeComp }: { activeComp?: Competi
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                      <Button variant="outline" size="sm" onClick={() => handleShowQr(comp)} className="gap-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200">
+                        <QrCode className="w-3.5 h-3.5" />报名二维码
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => handleOpen(comp)} className="gap-1.5">
                         <Edit2 className="w-3.5 h-3.5" />编辑
                       </Button>
@@ -138,6 +189,40 @@ export default function AdminCompetitions({ activeComp }: { activeComp?: Competi
           })}
         </div>
       )}
+
+      {/* 赛事专属报名二维码 */}
+      <Dialog open={!!qrComp} onOpenChange={(o) => !o && setQrComp(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>报名二维码 · {qrComp?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-2">
+            <p className="text-sm text-slate-500 text-center">扫码后直接进入该赛事报名；俱乐部账号登录后自动选中，无需手动找赛事</p>
+            <div className="p-3 bg-white border border-slate-200 rounded-xl min-h-[200px] flex items-center justify-center">
+              {qrLoading ? (
+                <span className="text-sm text-slate-400">生成中...</span>
+              ) : qrDataUrl ? (
+                <img src={qrDataUrl} alt="报名二维码" className="w-64 h-64" />
+              ) : null}
+            </div>
+            <div className="w-full">
+              <Label>专属报名链接</Label>
+              <div className="flex gap-2 mt-1">
+                <Input readOnly value={qrUrl} className="text-xs font-mono" onFocus={e => e.target.select()} />
+                <Button variant="outline" size="sm" onClick={handleCopyQrUrl} className="shrink-0 gap-1.5">
+                  <Copy className="w-3.5 h-3.5" />复制
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQrComp(null)}>关闭</Button>
+            <Button onClick={handleDownloadQr} disabled={!qrDataUrl} className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
+              <Download className="w-3.5 h-3.5" />下载二维码 PNG
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">

@@ -6,6 +6,7 @@ import ClubDashboard from './ClubDashboard';
 import ClubTeamSetup from './ClubTeamSetup';
 import ClubCompetitionSelect, { getStoredCompetitionId, setStoredCompetitionId } from './ClubCompetitionSelect';
 import { competitionStore, teamProfileStore, clearCache } from '@/lib/store';
+import { getCompetitionIdFromUrl, clearCompetitionParamFromUrl } from '@/lib/registrationLink';
 import type { Competition, ClubAccount, TeamProfile } from '@/types';
 import { Loader2 } from 'lucide-react';
 
@@ -17,6 +18,14 @@ export default function ClubApp() {
   const [selectedCompId, setSelectedCompId] = useState<string | null>(null);
   const [selectedComp, setSelectedComp] = useState<Competition | null>(null);
   const [compCheckLoading, setCompCheckLoading] = useState(true);
+  // 专属报名链接参数：监听 hash 变化，支持已登录用户在当前页打开新的赛事二维码链接
+  const [urlCompetitionId, setUrlCompetitionId] = useState<string | null>(() => getCompetitionIdFromUrl());
+
+  useEffect(() => {
+    const onHashChange = () => setUrlCompetitionId(getCompetitionIdFromUrl());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   // Multi-team state
   const [teamProfiles, setTeamProfiles] = useState<TeamProfile[]>([]);
@@ -27,7 +36,7 @@ export default function ClubApp() {
   const [showTeamSetup, setShowTeamSetup] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TeamProfile | null>(null);
 
-  // On login/register: verify stored competition is still valid
+  // On login/register: 专属报名链接优先，其次本地记忆；验证赛事仍然有效
   useEffect(() => {
     if (!currentClub) {
       setSelectedCompId(null);
@@ -40,7 +49,9 @@ export default function ClubApp() {
       return;
     }
 
-    const storedId = getStoredCompetitionId();
+    // 赛事专属二维码链接：#club?competition=<id> 优先于本地记忆
+    const linkedId = urlCompetitionId;
+    const storedId = linkedId || getStoredCompetitionId();
     if (!storedId) {
       setCompCheckLoading(false);
       return;
@@ -48,13 +59,16 @@ export default function ClubApp() {
 
     competitionStore.getById(storedId).then(comp => {
       if (comp) {
+        // 来自专属链接的赛事写入本地记忆，刷新后保持一致
+        if (linkedId) setStoredCompetitionId(comp.id);
         setSelectedCompId(comp.id);
         setSelectedComp(comp);
+        clearCache();
         loadTeamProfiles(comp.id, currentClub.id);
       }
       setCompCheckLoading(false);
     }).catch(() => setCompCheckLoading(false));
-  }, [currentClub]);
+  }, [currentClub, urlCompetitionId]);
 
   const loadTeamProfiles = async (cid: string, clubId: string) => {
     setTeamCheckLoading(true);
@@ -79,6 +93,9 @@ export default function ClubApp() {
   };
 
   const handleSelectCompetition = (id: string, comp: Competition) => {
+    // 用户手动选择赛事时清除专属链接参数，避免刷新后又跳回二维码赛事
+    clearCompetitionParamFromUrl();
+    setUrlCompetitionId(null);
     setStoredCompetitionId(id);
     setSelectedCompId(id);
     setSelectedComp(comp);
