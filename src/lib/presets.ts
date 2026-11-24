@@ -6,11 +6,12 @@
 /**
  * 命名体系（同一场比赛只能使用其中一套，不可混用）
  *  - 'zh'：中文命名（幼儿组 / 儿童甲组 / 少年甲组 ... 成年组）
- *  - 'u' ：U 系列命名（U6 / U9 / U12 / U15 / U18 / 青年组19+ / 26+ / 青年组 / 中年组 / 老年组）
+ *  - 'u' ：U 系列命名（U6 / U9 / U12 / U15 / U18 / 青年组19+ / 26+）
  *  - 'student'：学生组命名（小学甲组 / 小学乙组 / 初中组 / 高中组，按年级划分）
+ *  - 'student_citizen'：学生市民组命名（学生组：幼儿组U6~青年组19+；市民组：青年/中年/老年）
  *  - 'common'：通用组别（特教组 / 亲子组 / 不分组别），所有体系均可共存
  */
-export type NamingSystem = 'zh' | 'u' | 'student' | 'common';
+export type NamingSystem = 'zh' | 'u' | 'student' | 'student_citizen' | 'common';
 
 export interface PresetGroup {
   id: string;
@@ -170,10 +171,6 @@ export const PRESET_AGE_GROUPS: PresetGroup[] = [
   { id: 'age_u_18', namingSystem: 'u', name: 'U18', type: 'age', ageMin: 16, ageMax: 18, description: '16-18 岁' },
   { id: 'age_u_19', namingSystem: 'u', name: '青年组19+', type: 'age', ageMin: 19, ageMax: 25, description: '19-25 岁' },
   { id: 'age_u_26', namingSystem: 'u', name: '26+', type: 'age', ageMin: 26, description: '26 岁及以上' },
-  // 成年年龄分组（依据竞赛规程：青年 18-35 / 中年 36-50 / 老年 51-60 周岁）
-  { id: 'age_u_youth',  namingSystem: 'u', name: '青年组', type: 'age', ageMin: 18, ageMax: 35, description: '18-35 周岁' },
-  { id: 'age_u_middle', namingSystem: 'u', name: '中年组', type: 'age', ageMin: 36, ageMax: 50, description: '36-50 周岁' },
-  { id: 'age_u_senior', namingSystem: 'u', name: '老年组', type: 'age', ageMin: 51, ageMax: 60, description: '51-60 周岁' },
 
   // ========================
   // 第三套命名体系：学生组（按年级划分，中小学赛事常用）
@@ -187,6 +184,25 @@ export const PRESET_AGE_GROUPS: PresetGroup[] = [
   { id: 'age_stu_px_b', namingSystem: 'student', name: '小学乙组', type: 'age', ageMin: 10, ageMax: 12, description: '4-6 年级' },
   { id: 'age_stu_cz',   namingSystem: 'student', name: '初中组',   type: 'age', ageMin: 13, ageMax: 15, description: '初 1 - 初 3' },
   { id: 'age_stu_gz',   namingSystem: 'student', name: '高中组',   type: 'age', ageMin: 16, ageMax: 18, description: '高 1 - 高 3' },
+
+  // ========================
+  // 第四套命名体系：学生市民组（依据竞赛规程分组）
+  //   学生组：幼儿组U6(4-6) / 儿童甲组U9(7-9) / 儿童乙组U12(10-12)
+  //           少年甲组U15(13-15) / 少年乙组U18(16-18) / 青年组19+(19-25)
+  //   市民组（设机关组、县市组、协会组）：青年组(18-35) / 中年组(36-50) / 老年组(51-60)
+  // 出生日期按赛事年份动态推算（birthRangeForAge），与图片「2026 年赛事」示例一致
+  // ========================
+  // ---- 学生组 ----
+  { id: 'age_sc_u6',    namingSystem: 'student_citizen', name: '幼儿组U6',    type: 'age', ageMin: 4,  ageMax: 6,  description: '4-6 岁' },
+  { id: 'age_sc_u9',    namingSystem: 'student_citizen', name: '儿童甲组U9',  type: 'age', ageMin: 7,  ageMax: 9,  description: '7-9 岁' },
+  { id: 'age_sc_u12',   namingSystem: 'student_citizen', name: '儿童乙组U12', type: 'age', ageMin: 10, ageMax: 12, description: '10-12 岁' },
+  { id: 'age_sc_u15',   namingSystem: 'student_citizen', name: '少年甲组U15', type: 'age', ageMin: 13, ageMax: 15, description: '13-15 岁' },
+  { id: 'age_sc_u18',   namingSystem: 'student_citizen', name: '少年乙组U18', type: 'age', ageMin: 16, ageMax: 18, description: '16-18 岁' },
+  { id: 'age_sc_u19',   namingSystem: 'student_citizen', name: '青年组19+',   type: 'age', ageMin: 19, ageMax: 25, description: '19-25 岁' },
+  // ---- 市民组（设机关组、县市组、协会组）----
+  { id: 'age_sc_youth', namingSystem: 'student_citizen', name: '青年组', type: 'age', ageMin: 18, ageMax: 35, description: '18-35 周岁' },
+  { id: 'age_sc_middle',namingSystem: 'student_citizen', name: '中年组', type: 'age', ageMin: 36, ageMax: 50, description: '36-50 周岁' },
+  { id: 'age_sc_senior',namingSystem: 'student_citizen', name: '老年组', type: 'age', ageMin: 51, ageMax: 60, description: '51-60 周岁' },
 ];
 
 // ========================
@@ -196,35 +212,37 @@ export const PRESET_AGE_GROUPS: PresetGroup[] = [
 /**
  * 根据赛事中已存在的分组名称，推断该赛事正在使用的命名体系。
  *
- * 规则：同一场比赛只能使用一套命名体系（中文 / U 系列 / 学生组），不可混用。
+ * 规则：同一场比赛只能使用一套命名体系（中文 / U 系列 / 学生组 / 学生市民组），不可混用。
  * 通用组别（特教组 / 亲子组 / 不分组别）不参与体系判定，所有体系都能共存。
+ * 因各体系可能有重名组合组（如「青年组19+男子组」同属 u 与学生市民组），按命中数量取胜者判定。
  *
  * @param groupNames 该赛事下已有分组的名称列表
- * @returns 'zh' | 'u' | 'student' | null（null = 尚未确定，均可选）
+ * @returns NamingSystem | null（null = 尚未确定，均可选）
  */
-export function detectNamingSystem(groupNames: string[]): 'zh' | 'u' | 'student' | null {
-  let hasZh = false;
-  let hasU = false;
-  let hasStudent = false;
+export function detectNamingSystem(groupNames: string[]): Exclude<NamingSystem, 'common'> | null {
+  const scores: Record<string, number> = { zh: 0, u: 0, student: 0, student_citizen: 0 };
   for (const g of PRESET_COMBINED_GROUPS) {
     if (g.namingSystem === 'common') continue;
     if (!groupNames.includes(g.name)) continue;
-    if (g.namingSystem === 'zh') hasZh = true;
-    else if (g.namingSystem === 'u') hasU = true;
-    else hasStudent = true;
+    scores[g.namingSystem] = (scores[g.namingSystem] || 0) + 1;
   }
-  const hits = [hasZh && 'zh', hasU && 'u', hasStudent && 'student'].filter(Boolean) as ('zh' | 'u' | 'student')[];
-  if (hits.length === 1) return hits[0];
-  // 同时存在多套（理论上不该发生）→ 以中文体系为准，要求先清理另一套
-  if (hasZh) return 'zh';
-  if (hasU) return 'u';
-  if (hasStudent) return 'student';
-  return null;
+  const ranked = (['zh', 'u', 'student', 'student_citizen'] as const)
+    .map(sys => ({ sys, n: scores[sys] }))
+    .sort((a, b) => b.n - a.n);
+  if (ranked[0].n === 0) return null;
+  // 命中数并列时按 zh > u > student > student_citizen 顺序取先者（信息不足，求稳）
+  return ranked[0].sys as Exclude<NamingSystem, 'common'>;
 }
 
 /** 体系显示名 */
-export function namingSystemLabel(s: 'zh' | 'u' | 'student' | null): string {
-  return s === 'u' ? 'U 系列命名' : s === 'zh' ? '中文命名' : s === 'student' ? '学生组命名' : '未选择';
+export function namingSystemLabel(s: NamingSystem | null): string {
+  switch (s) {
+    case 'u': return 'U 系列命名';
+    case 'zh': return '中文命名';
+    case 'student': return '学生组命名';
+    case 'student_citizen': return '学生市民组命名';
+    default: return '未选择';
+  }
 }
 
 // ========================
@@ -398,12 +416,13 @@ function buildCombinedGroups(): CombinedGroupPreset[] {
     namingSystem: 'common',
   });
 
-  // 标准年龄组（中文命名 + U 系列命名 + 学生组命名 + 特教组）→ 生成 男子组 / 女子组 / 混合组
+  // 标准年龄组（中文命名 + U 系列 + 学生组 + 学生市民组 + 特教组）→ 生成 男子组 / 女子组 / 混合组
   const standardAgeIds = new Set([
     'age_1', 'age_2', 'age_3', 'age_4', 'age_5', 'age_6', 'age_7', 'age_8',  // 中文命名
     'age_u_6', 'age_u_9', 'age_u_12', 'age_u_15', 'age_u_18', 'age_u_19', 'age_u_26',  // U 命名
-    'age_u_youth', 'age_u_middle', 'age_u_senior',  // U 命名（成年组：青年/中年/老年）
     'age_stu_px_a', 'age_stu_px_b', 'age_stu_cz', 'age_stu_gz',  // 学生组命名（年级制）
+    'age_sc_u6', 'age_sc_u9', 'age_sc_u12', 'age_sc_u15', 'age_sc_u18', 'age_sc_u19',  // 学生市民组（学生组）
+    'age_sc_youth', 'age_sc_middle', 'age_sc_senior',  // 学生市民组（市民组）
   ]);
   for (const age of PRESET_AGE_GROUPS) {
     if (standardAgeIds.has(age.id)) {

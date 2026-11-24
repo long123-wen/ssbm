@@ -18,6 +18,7 @@ import {
   PRESET_EVENTS,
   getEventCategoryTree,
   detectNamingSystem,
+  namingSystemLabel,
   type CombinedGroupPreset,
   type PresetEvent,
 } from '@/lib/presets';
@@ -38,7 +39,7 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
   // 预设勾选：{ age_1: true, age_2: true, gender_m: true, ... }
   const [selGroupPresets, setSelGroupPresets] = useState<Record<string, boolean>>({});
   // 命名体系选择（'zh' 中文 / 'u' U系列 / 'student' 学生组）；赛事已有分组时会被自动锁定
-  const [manualNamingSystem, setManualNamingSystem] = useState<'zh' | 'u' | 'student'>('zh');
+  const [manualNamingSystem, setManualNamingSystem] = useState<'zh' | 'u' | 'student' | 'student_citizen'>('zh');
 
   // 项目预设对话框
   const [evDialog, setEvDialog] = useState(false);
@@ -763,9 +764,9 @@ interface GroupPresetDialogProps {
   alreadyAddedCount: number;
   visibleGroups: typeof PRESET_COMBINED_GROUPS;
   alreadyAddedNames: Set<string>;
-  activeNamingSystem: 'zh' | 'u' | 'student' | null;
-  lockedNamingSystem: 'zh' | 'u' | 'student' | null;
-  onChangeNamingSystem: (sys: 'zh' | 'u' | 'student') => void;
+  activeNamingSystem: 'zh' | 'u' | 'student' | 'student_citizen' | null;
+  lockedNamingSystem: 'zh' | 'u' | 'student' | 'student_citizen' | null;
+  onChangeNamingSystem: (sys: 'zh' | 'u' | 'student' | 'student_citizen') => void;
   saving: boolean;
   onSaveEdit: () => void;
   onSavePreset: () => void;
@@ -812,7 +813,7 @@ function GroupPresetDialog({
             <div className="shrink-0 mb-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-slate-500">命名体系</span>
-                {([['zh', '中文命名'], ['u', 'U 系列命名'], ['student', '学生组']] as const).map(([sys, label]) => {
+                {([['zh', '中文命名'], ['u', 'U 系列命名'], ['student', '学生组'], ['student_citizen', '学生市民组命名']] as const).map(([sys, label]) => {
                   const disabled = lockedNamingSystem !== null && lockedNamingSystem !== sys;
                   const active = activeNamingSystem === sys;
                   return (
@@ -833,7 +834,7 @@ function GroupPresetDialog({
               </div>
               <p className="text-[11px] text-slate-400 mt-1.5">
                 {lockedNamingSystem
-                  ? `本场赛事已使用「${lockedNamingSystem === 'u' ? 'U 系列命名' : lockedNamingSystem === 'student' ? '学生组命名' : '中文命名'}」，不能混用另一套。如需切换，请先删除现有年龄分组。`
+                  ? `本场赛事已使用「${namingSystemLabel(lockedNamingSystem)}」，不能混用另一套。如需切换，请先删除现有年龄分组。`
                   : '同一场比赛只能使用一套命名体系，选定后不可混用。'}
               </p>
             </div>
