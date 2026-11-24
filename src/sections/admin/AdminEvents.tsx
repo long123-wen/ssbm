@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Edit2, Trash2, ChevronDown, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, type DragEvent } from 'react';
+import { Plus, Edit2, Trash2, ChevronDown, ChevronRight, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +29,8 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
   const [groupMap, setGroupMap] = useState<Record<string, EventGroup[]>>({});
   const [movingEvent, setMovingEvent] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
 
   // ====== 预设选择状态 ======
   // 分组预设对话框
@@ -122,12 +124,12 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
     }
   };
 
-  // 手动调整项目出场顺序：与相邻项目交换位置，order_index 重排为连续值
-  const moveEvent = async (index: number, direction: -1 | 1) => {
-    const target = index + direction;
-    if (target < 0 || target >= events.length || movingEvent) return;
+  // 手动调整项目出场顺序：把 from 位置的项目移到 to 位置（按钮/拖拽共用），order_index 重排为连续值
+  const reorderEvent = async (from: number, to: number) => {
+    if (from === to || from < 0 || to < 0 || from >= events.length || to >= events.length || movingEvent) return;
     const next = [...events];
-    [next[index], next[target]] = [next[target], next[index]];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
     const normalized = next.map((ev, i) => ({ ...ev, orderIndex: i }));
     setMovingEvent(true);
     try {
@@ -140,6 +142,7 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
       setMovingEvent(false);
     }
   };
+  const moveEvent = (index: number, direction: -1 | 1) => reorderEvent(index, index + direction);
 
   // 批量添加预设项目
   const savePresetEvents = async () => {
@@ -389,7 +392,7 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
             <div>
               <span className="text-sm font-semibold text-slate-700">竞赛项目</span>
               <span className="text-xs text-slate-400 ml-2">{events.length} 项</span>
-              <p className="text-xs text-slate-400 mt-0.5">用 ↑ ↓ 调整项目顺序（即出场顺序）；改后请到「出场顺序」页重新生成</p>
+              <p className="text-xs text-slate-400 mt-0.5">拖拽卡片或用 ↑ ↓ 调整项目顺序（即出场顺序）；改后请到「出场顺序」页重新生成</p>
             </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={openEvPresetDialog} className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
@@ -413,6 +416,13 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
                 total={events.length}
                 onMove={moveEvent}
                 moving={movingEvent}
+                dragging={dragIndex === idx}
+                isDropTarget={overIndex === idx && dragIndex !== idx}
+                onDragStart={() => setDragIndex(idx)}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (overIndex !== idx) setOverIndex(idx); }}
+                onDragLeave={() => { if (overIndex === idx) setOverIndex(null); }}
+                onDrop={() => { if (dragIndex !== null && dragIndex !== idx) reorderEvent(dragIndex, idx); setDragIndex(null); setOverIndex(null); }}
+                onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
                 onToggleExpand={() => setExpandedEvent(prev => prev === ev.id ? null : ev.id)}
                 onAddGroups={() => openGrpPresetDialog(ev.id)}
                 onEditEvent={() => openEvEditDialog(ev)}
@@ -504,6 +514,13 @@ interface EventListCardProps {
   total: number;
   onMove: (index: number, direction: -1 | 1) => void;
   moving: boolean;
+  dragging: boolean;
+  isDropTarget: boolean;
+  onDragStart: () => void;
+  onDragOver: (e: DragEvent) => void;
+  onDragLeave: () => void;
+  onDrop: () => void;
+  onDragEnd: () => void;
   onToggleExpand: () => void;
   onAddGroups: () => void;
   onEditEvent: () => void;
@@ -514,15 +531,27 @@ interface EventListCardProps {
 
 function EventListCard({
   event, groups, expanded, index, total, onMove, moving,
+  dragging, isDropTarget, onDragStart, onDragOver, onDragLeave, onDrop, onDragEnd,
   onToggleExpand, onAddGroups, onEditEvent, onDeleteEvent,
   onEditGroup, onDeleteGroup,
 }: EventListCardProps) {
   return (
-    <Card className="bg-white border-0 shadow-sm">
+    <Card
+      draggable={!moving}
+      onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(index)); onDragStart(); }}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={(e) => { e.preventDefault(); onDrop(); }}
+      onDragEnd={onDragEnd}
+      className={`bg-white border-0 shadow-sm transition-opacity ${dragging ? 'opacity-40' : ''} ${isDropTarget ? 'ring-2 ring-blue-400' : ''}`}
+    >
       <CardHeader className="py-0">
         <div className="flex items-center gap-3 py-3.5">
-          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm shrink-0">
-            {event.orderIndex + 1}
+          <div className="flex items-center gap-1 shrink-0">
+            <span title="拖拽调整顺序"><GripVertical className="w-4 h-4 text-slate-300 cursor-grab active:cursor-grabbing" /></span>
+            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm">
+              {event.orderIndex + 1}
+            </div>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
