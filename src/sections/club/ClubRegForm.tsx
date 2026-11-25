@@ -837,6 +837,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
                   filledByEvent={tempRegs}
                   groupsMap={groupsMap}
                   isEventFull={isEventFull}
+                  getLimit={limitOf}
                   onPickEvent={openReferenceEvent}
                   disabled={(submittedLocked && !adminEditUnlocked) || deadlineBlocked || agreementBlocked}
                 />
@@ -1000,6 +1001,8 @@ interface Step2EventsProps {
   filledByEvent: TempReg[];
   groupsMap: Record<string, EventGroup[]>;
   isEventFull: (eventId: string) => boolean;
+  /** 限报上限查询（null = 不限），用于卡片上提示集体项目限报队数 */
+  getLimit: (scope: 'event' | 'group', targetId: string) => number | null;
   onPickEvent: (eventId: string) => void;
   disabled: boolean;
 }
@@ -1007,7 +1010,7 @@ interface Step2EventsProps {
 /** Step 2：项目分类/类型筛选 + 项目网格（行 808-864 段） */
 function RegFormStep2Events({
   referenceCategory, referenceType, onCategoryChange, onTypeChange,
-  categories, events, filledByEvent, groupsMap, isEventFull, onPickEvent, disabled,
+  categories, events, filledByEvent, groupsMap, isEventFull, getLimit, onPickEvent, disabled,
 }: Step2EventsProps) {
   return (
     <div className={disabled ? 'pointer-events-none select-none opacity-60' : ''}>
@@ -1050,6 +1053,9 @@ function RegFormStep2Events({
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       <Badge className="bg-amber-100 text-amber-700 border-amber-200">可报组别</Badge>
                       <span className="text-xs text-slate-500 py-1">{ev.isIndividual === false ? `每队最多 ${ev.maxAthletes} 人` : '个人项目'}</span>
+                      {ev.isIndividual === false && getLimit('event', ev.id) !== null && (
+                        <Badge className="bg-blue-100 text-blue-700 border-blue-200">限报 {getLimit('event', ev.id)} 队</Badge>
+                      )}
                     </div>
                     <p className="text-xs text-slate-500 mt-2">已填：{filled} 项</p>
                   </div>
