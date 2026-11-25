@@ -364,13 +364,14 @@ export const PRESET_EVENTS: PresetEvent[] = [
 ];
 
 // ========================
-// 市民组参赛单位类别（机关组 / 县市组 / 协会组）
-// 作为组名细分层级（如"青年组机关男子组"），仅展示与统计，不参与报名资格限制
+// 市民组参赛单位类别（机关企事业单位组 / 县市组 / 社会协会组 / 社会个人组）
+// 作为组名细分层级（如"青年组机关企事业单位男子组"），仅展示与统计，不参与报名资格限制
 // ========================
 export const PRESET_UNIT_CATEGORIES = [
-  { id: 'agency', name: '机关', fullName: '机关组' },
+  { id: 'agency', name: '机关企事业单位', fullName: '机关企事业单位组' },
   { id: 'county', name: '县市', fullName: '县市组' },
-  { id: 'association', name: '协会', fullName: '协会组' },
+  { id: 'association', name: '社会协会', fullName: '社会协会组' },
+  { id: 'individual', name: '社会个人', fullName: '社会个人组' },
 ] as const;
 export type UnitCategoryId = typeof PRESET_UNIT_CATEGORIES[number]['id'];
 
@@ -399,7 +400,7 @@ export interface CombinedGroupPreset {
   isStandalone: boolean;
   /** 所属命名体系（'zh' 中文 / 'u' U系列 / 'common' 通用） */
   namingSystem: NamingSystem;
-  /** 市民组单位类别细分（机关/县市/协会），仅用于展示与统计 */
+  /** 市民组单位类别细分（机关企事业单位/县市/社会协会/社会个人），仅用于展示与统计 */
   unitCategory?: UnitCategoryId;
 }
 
@@ -500,7 +501,7 @@ function buildCombinedGroups(): CombinedGroupPreset[] {
     }
   }
 
-  // 市民组（青年/中年/老年）额外细分：单位类别(机关/县市/协会) × 性别 = 每组 9 个
+  // 市民组（青年/中年/老年）额外细分：单位类别(机关企事业单位/县市/社会协会/社会个人) × 性别 = 每组 12 个
   // 命名形如「青年组机关男子组」；单位类别已体现在组名，仅展示与统计，不改报名资格
   const citizenAgeIds = new Set(['age_sc_youth', 'age_sc_middle', 'age_sc_senior']);
   for (const age of PRESET_AGE_GROUPS) {
