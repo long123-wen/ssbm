@@ -318,11 +318,13 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     const file = e.target.files?.[0];
     if (!file) return;
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      showAlert('仅支持 JPG 或 PNG 格式的照片');
+      e.target.value = '';
+      showAlert('免冠照片仅支持 JPG 或 PNG 格式，请重新选择');
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      showAlert('照片大小不能超过 2MB');
+      e.target.value = '';
+      showAlert(`免冠照片大小超过 2MB（当前 ${(file.size / 1024 / 1024).toFixed(1)}MB），请压缩后重新上传`);
       return;
     }
     setQuickAvatarFile(file);
@@ -337,6 +339,10 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
   const handleQuickAdd = async () => {
     if (!quickAddForm.name.trim() || !quickAddForm.birthDate || !quickAddForm.idCard.trim()) {
       showAlert('请填写姓名、出生日期和身份证号');
+      return;
+    }
+    if (!quickAvatarFile) {
+      showAlert('请上传免冠照片（必填）');
       return;
     }
 
@@ -1357,7 +1363,7 @@ function RegFormLockedPanel({
                     </button>
                   )}
                 </div>
-                <p className="text-[10px] text-slate-400">免冠照片（可选，JPG/PNG ≤2MB）</p>
+                <p className="text-[10px] text-slate-500">免冠照片 <span className="text-red-500">*</span>（JPG/PNG ≤2MB，必填）</p>
               </div>
 
               <div>

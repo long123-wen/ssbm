@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { CenterAlert } from '@/components/CenterAlert';
 import { leaderStore, coachStore, athleteStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { validateIdCard, extractBirthDate, extractGender } from '@/lib/idCardValidator';
@@ -46,6 +47,9 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
   const [idCardPreview, setIdCardPreview] = useState<string | null>(null);
   const [idCardPhotoUploading, setIdCardPhotoUploading] = useState(false);
   const [deleteAthleteId, setDeleteAthleteId] = useState<string | null>(null);
+  // 居中提示（照片超限 / 必填校验），比角落 toast 更醒目
+  const [alertMsg, setAlertMsg] = useState<string | null>(null);
+  const showAlert = (message: string) => setAlertMsg(message);
   const [deleteCoachId, setDeleteCoachId] = useState<string | null>(null);
   const [deleteLeaderId, setDeleteLeaderId] = useState<string | null>(null);
 
@@ -127,13 +131,15 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
     // 校验格式
     const validTypes = ['image/jpeg', 'image/png'];
     if (!validTypes.includes(file.type)) {
-      toast.error('仅支持 JPG 或 PNG 格式的照片');
+      e.target.value = '';
+      showAlert('免冠照片仅支持 JPG 或 PNG 格式，请重新选择');
       return;
     }
 
-    // 校验大小（2MB）
+    // 校验大小（2MB）：超限用居中弹窗明确告知当前大小
     if (file.size > 2 * 1024 * 1024) {
-      toast.error('照片大小不能超过 2MB');
+      e.target.value = '';
+      showAlert(`免冠照片大小超过 2MB（当前 ${(file.size / 1024 / 1024).toFixed(1)}MB），请压缩后重新上传`);
       return;
     }
 
@@ -156,11 +162,13 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
     if (!file) return;
     const validTypes = ['image/jpeg', 'image/png'];
     if (!validTypes.includes(file.type)) {
-      toast.error('身份证照片仅支持 JPG 或 PNG 格式');
+      e.target.value = '';
+      showAlert('身份证照片仅支持 JPG 或 PNG 格式，请重新选择');
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      toast.error('身份证照片大小不能超过 2MB');
+      e.target.value = '';
+      showAlert(`身份证照片大小超过 2MB（当前 ${(file.size / 1024 / 1024).toFixed(1)}MB），请压缩后重新上传`);
       return;
     }
     setIdCardFile(file);
@@ -173,7 +181,10 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
   };
 
   const saveAthlete = async () => {
-    if (!aForm.name || !aForm.birthDate) return;
+    if (!aForm.name || !aForm.birthDate) {
+      showAlert('请填写姓名和出生日期');
+      return;
+    }
 
     // 身份证校验
     if (aForm.idCard.trim()) {
@@ -181,18 +192,19 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
       if (!result.valid) {
         setIdCardTouched(true);
         setIdCardError(result.error || '身份证号不合法');
-        toast.error('身份证号校验失败：' + result.error);
+        showAlert('身份证号校验失败：' + result.error);
         return;
       }
     }
 
-    // 身份证照片必填：新增运动员必须有，编辑时若已有旧照片或本次新选也可通过
-    if (!aEdit && !idCardFile) {
-      toast.error('请上传身份证照片（必填）');
+    // 免冠照片必填：新增必须有，编辑时已有旧照片或本次新选也可通过
+    if (!avatarFile && !(aEdit && aEdit.avatarUrl)) {
+      showAlert('请上传免冠照片（必填）');
       return;
     }
-    if (aEdit && !idCardFile && !aEdit.idCardPhoto) {
-      toast.error('请上传身份证照片（必填）');
+    // 身份证照片必填：新增运动员必须有，编辑时若已有旧照片或本次新选也可通过
+    if (!idCardFile && !(aEdit && aEdit.idCardPhoto)) {
+      showAlert('请上传身份证照片（必填）');
       return;
     }
 
@@ -474,7 +486,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
                   </button>
                 )}
               </div>
-              <p className="text-xs text-slate-400">免冠照片（JPG/PNG，≤2MB）</p>
+              <p className="text-xs text-slate-500">免冠照片 <span className="text-red-500">*</span>（JPG/PNG，≤2MB，必填）</p>
             </div>
 
             {/* 身份证照片上传（必填，敏感信息） */}
@@ -568,6 +580,14 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 居中提示：照片超限 / 必填校验 */}
+      <CenterAlert
+        open={!!alertMsg}
+        title="提示"
+        message={alertMsg || ''}
+        onClose={() => setAlertMsg(null)}
+      />
 
       {/* 删除运动员确认对话框 */}
       <AlertDialog open={!!deleteAthleteId} onOpenChange={() => setDeleteAthleteId(null)}>
