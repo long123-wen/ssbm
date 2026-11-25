@@ -49,7 +49,7 @@ const COMPETITION: Record<string, string> = {
   REGISTRATION_CLOSED: '报名已关闭',
   REGISTRATION_IMMUTABLE: '报名记录已确认，无法修改',
   REGISTRATION_NOT_UNLOCKED: '此报名记录尚未被管理员解锁',
-  REGISTRATION_QUOTA_EXCEEDED: '报名限额已达到，请选择其他项目或分组',
+  REGISTRATION_QUOTA_EXCEEDED: '报名限额已达到（集体项目按队伍计），请选择其他项目或分组',
   INDIVIDUAL_EVENT_QUOTA_EXCEEDED: '该运动员个人项目报名数已达上限',
   TEAM_EVENT_QUOTA_EXCEEDED: '该队伍集体项目报名数已达上限',
   GROUP_CAPACITY_EXCEEDED: '该组别报名人数已满',

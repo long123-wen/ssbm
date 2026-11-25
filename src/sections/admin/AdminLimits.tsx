@@ -18,8 +18,10 @@ export default function AdminLimits({ competitionId }: Props) {
   const [events, setEvents] = useState<Event[]>([]);
   const [allGroups, setAllGroups] = useState<EventGroup[]>([]);
   const [configs, setConfigs] = useState<LimitConfig[]>([]);
-  // 实时统计（每个维度当前已报名人数）
+  // 实时统计（每个维度当前已报名人数 / 报名记录数）
   const [liveStats, setLiveStats] = useState<Record<string, number>>({});
+  // 集体项目按队伍统计：key 同上，值为去重后的队伍数
+  const [teamStats, setTeamStats] = useState<Record<string, number>>({});
 
   // 本地编辑状态：key = `${scope}:${targetId}` → maxRegistrations
   const [editMap, setEditMap] = useState<Record<string, number | null>>({});
@@ -56,18 +58,28 @@ export default function AdminLimits({ competitionId }: Props) {
         map[`${c.scope}:${c.targetId}`] = c.maxRegistrations;
       }
 
-      // 实时统计
+      // 实时统计：人数口径（报名记录数）与队伍口径（去重队伍）
       const stats: Record<string, number> = {};
+      const teamKeys = new Map<string, Set<string>>();
       for (const r of regs) {
         if (r.status !== 'pending' && r.status !== 'confirmed') continue;
-        // 队伍维度
+        const identity = r.teamProfileId || r.clubId;
+        // 队伍维度（该队累计报名记录数）
         if (r.teamProfileId) {
           stats[`team:${r.teamProfileId}`] = (stats[`team:${r.teamProfileId}`] || 0) + 1;
         }
-        // 项目维度
+        // 项目 / 分组维度
         stats[`event:${r.eventId}`] = (stats[`event:${r.eventId}`] || 0) + 1;
+        stats[`group:${r.groupId}`] = (stats[`group:${r.groupId}`] || 0) + 1;
+        for (const key of [`event:${r.eventId}`, `group:${r.groupId}`]) {
+          if (!teamKeys.has(key)) teamKeys.set(key, new Set());
+          teamKeys.get(key)!.add(identity);
+        }
       }
+      const tStats: Record<string, number> = {};
+      for (const [key, ids] of teamKeys) tStats[key] = ids.size;
       setLiveStats(stats);
+      setTeamStats(tStats);
       setEditMap(map);
       setLoading(false);
     }).catch(err => {
@@ -97,7 +109,7 @@ export default function AdminLimits({ competitionId }: Props) {
       // 刷新 configs
       const newConfigs = await limitConfigStore.getByCompetition(competitionId);
       setConfigs(newConfigs);
-      toast.success(`${scopeLabel(scope)}限报人数已保存`);
+      toast.success(`${scopeLabel(scope)}限报${getUnit(scope, targetId)}数已保存`);
     } catch (e: any) {
       toast.error('保存失败：' + (e.message || '未知错误'));
     } finally {
@@ -146,8 +158,21 @@ export default function AdminLimits({ competitionId }: Props) {
   const scopeIcon = (s: 'team' | 'event' | 'group') =>
     s === 'team' ? Users : s === 'event' ? Flag : Layers;
 
+  /** 集体项目限额按队伍计数，个人项目仍按报名人数计数。双条件判定，兼容旧数据 is_individual 缺失/异常 */
+  const isTeamCounted = (scope: 'team' | 'event' | 'group', targetId: string): boolean => {
+    if (scope === 'team') return false;
+    const eventId = scope === 'event' ? targetId : allGroups.find(g => g.id === targetId)?.eventId;
+    const ev = events.find(e => e.id === eventId);
+    if (!ev) return false;
+    return !ev.isIndividual || Number(ev.maxAthletes) > 1;
+  };
+
+  const getUnit = (scope: 'team' | 'event' | 'group', targetId: string): string =>
+    isTeamCounted(scope, targetId) ? '队' : '人';
+
   const getCurrentCount = (scope: 'team' | 'event' | 'group', targetId: string): number => {
-    return liveStats[`${scope}:${targetId}`] || 0;
+    const key = `${scope}:${targetId}`;
+    return isTeamCounted(scope, targetId) ? (teamStats[key] || 0) : (liveStats[key] || 0);
   };
 
   const getGroupName = (groupId: string): string => {
@@ -172,7 +197,7 @@ export default function AdminLimits({ competitionId }: Props) {
         <div>
           <h2 className="text-lg font-semibold text-slate-800">限报人数配置</h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            按队伍、项目、分组三个维度设置最大报名人数上限，留空或0表示不限制
+            按队伍、项目、分组三个维度设置上限，留空或0表示不限制；集体项目按「队」计，个人项目按「人」计
           </p>
         </div>
       </div>
@@ -305,17 +330,23 @@ export default function AdminLimits({ competitionId }: Props) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {events.map(ev => {
               const cur = getCurrentCount('event', ev.id);
+              const unit = getUnit('event', ev.id);
               const max = editMap[`event:${ev.id}`] ?? null;
               const full = max !== null && max > 0 && cur >= max;
               return (
                 <Card key={ev.id} className={`${full ? 'border-red-200 bg-red-50/30' : ''}`}>
                   <CardContent className="p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-slate-700 truncate max-w-[180px]">
-                        {ev.name}
-                      </span>
-                      <Badge variant={full ? 'destructive' : 'outline'} className="text-[11px]">
-                        已报 {cur} 人{max && max > 0 ? ` / ${max}` : ''}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-sm font-medium text-slate-700 truncate">
+                          {ev.name}
+                        </span>
+                        {unit === '队' && (
+                          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">按队</span>
+                        )}
+                      </div>
+                      <Badge variant={full ? 'destructive' : 'outline'} className="text-[11px] shrink-0">
+                        已报 {cur} {unit}{max && max > 0 ? ` / ${max}` : ''}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2">
@@ -325,7 +356,7 @@ export default function AdminLimits({ competitionId }: Props) {
                         value={getEditVal('event', ev.id)}
                         onChange={e => setEditVal('event', ev.id, e.target.value)}
                       />
-                      <span className="text-xs text-slate-400">人</span>
+                      <span className="text-xs text-slate-400">{unit}</span>
                       <div className="flex-1" />
                       <Button size="sm" variant="ghost" className="h-7 text-xs"
                         onClick={() => saveOne('event', ev.id)} disabled={saving}>
@@ -359,7 +390,8 @@ export default function AdminLimits({ competitionId }: Props) {
             {allGroups.map(grp => {
               const ev = events.find(e => e.id === grp.eventId);
               const max = editMap[`group:${grp.id}`] ?? null;
-              const cur = grp.currentCount;
+              const cur = getCurrentCount('group', grp.id);
+              const unit = getUnit('group', grp.id);
               const full = max !== null && max > 0 && cur >= max;
               return (
                 <Card key={grp.id} className={`${full ? 'border-red-200 bg-red-50/30' : ''}`}>
@@ -372,7 +404,7 @@ export default function AdminLimits({ competitionId }: Props) {
                         {ev && <span className="text-[11px] text-slate-400">{ev.name}</span>}
                       </div>
                       <Badge variant={full ? 'destructive' : 'outline'} className="text-[11px] shrink-0 ml-2">
-                        已报 {cur}{max !== null && max > 0 ? ` / ${max}` : ''}
+                        已报 {cur} {unit}{max !== null && max > 0 ? ` / ${max}` : ''}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2">
@@ -382,7 +414,7 @@ export default function AdminLimits({ competitionId }: Props) {
                         value={getEditVal('group', grp.id)}
                         onChange={e => setEditVal('group', grp.id, e.target.value)}
                       />
-                      <span className="text-xs text-slate-400">人</span>
+                      <span className="text-xs text-slate-400">{unit}</span>
                       <div className="flex-1" />
                       <Button size="sm" variant="ghost" className="h-7 text-xs"
                         onClick={() => saveOne('group', grp.id)} disabled={saving}>
@@ -410,9 +442,8 @@ export default function AdminLimits({ competitionId }: Props) {
           <p><strong>限报校验规则：</strong></p>
           <ul className="list-disc pl-4 space-y-0.5">
             <li>每人限报项数：限制每名运动员可报个人/集体项目的最大项数（顶部紫色卡片）</li>
-            <li>队伍维度：统计该队伍下所有 pending/confirmed 报名总数</li>
-            <li>项目维度：统计该项目下所有 pending/confirmed 报名总数</li>
-            <li>分组维度：统计该分组下所有 pending/confirmed 报名总数（与项目-分组自身属性无关，仅以本处配置为准）</li>
+            <li>集体项目（如 10 人长绳集体跳）限报按「队」计：填 1 就只允许 1 支队伍报名，该队报满后其他队伍及该队都不能再报该项目</li>
+            <li>个人项目仍按报名人数计；队伍维度统计该队伍下所有待审核/已确认报名记录总数</li>
             <li>任一超限即阻止报名，并提示具体原因</li>
           </ul>
         </div>

@@ -173,7 +173,14 @@ function assertEligible(group: Row, athlete: Row, startDate: string, isIndividua
     }
   }
 }
-async function assertLimits(env: Env, input: ClubRegistrationInput, event: Row, clubId: string, excludeRegistrationIds: string[] = []): Promise<void> {
+async function assertLimits(
+  env: Env,
+  input: ClubRegistrationInput,
+  event: Row,
+  clubId: string,
+  excludeRegistrationIds: string[] = [],
+  quotaReservations?: Map<string, number>,
+): Promise<void> {
   const count = input.athleteIds.length;
   // 上限：每队最多参赛人数
   if (count > Number(event.max_athletes)) throw new HttpError(422, 'Selected athletes exceed this event capacity', 'EVENT_ATHLETE_LIMIT');
@@ -183,16 +190,30 @@ async function assertLimits(env: Env, input: ClubRegistrationInput, event: Row, 
   if (Number.isFinite(minAthletes) && minAthletes > 0 && count < minAthletes) {
     throw new HttpError(422, `This event requires at least ${minAthletes} athletes`, 'EVENT_ATHLETE_MIN');
   }
+  // 集体项目（is_individual = 0）的限额按「队伍」计数；个人项目仍按报名记录（人）计数。
+  // 队伍身份优先 team_profile_id，旧数据无队伍时回退 club_id，与 D1 触发器保持一致。
+  const individualEvent = event.is_individual !== false && Number(event.is_individual) !== 0;
   const limits = await env.REGISTRATION_DB.prepare(`SELECT scope, target_id, max_registrations FROM limit_configs
     WHERE competition_id = ? AND ((scope = 'event' AND target_id = ?) OR (scope = 'group' AND target_id = ?) OR (scope = 'team' AND target_id = ?))`)
     .bind(input.competitionId, input.eventId, input.groupId, input.teamProfileId || clubId).all<Row>();
   for (const limit of limits.results || []) {
-    if (limit.max_registrations === null) continue;
+    const max = Number(limit.max_registrations);
+    // 留空 / 0 表示不限制（与管理端界面文案一致）
+    if (!Number.isFinite(max) || max <= 0) continue;
     const where = limit.scope === 'event' ? 'event_id = ?' : limit.scope === 'group' ? 'group_id = ?' : input.teamProfileId ? 'team_profile_id = ?' : 'club_id = ?';
     const target = limit.scope === 'event' ? input.eventId : limit.scope === 'group' ? input.groupId : input.teamProfileId || clubId;
     const exclusionSql = excludeRegistrationIds.length ? ` AND id NOT IN (${excludeRegistrationIds.map(() => '?').join(',')})` : '';
-    const count = await env.REGISTRATION_DB.prepare(`SELECT COUNT(*) AS total FROM registrations WHERE competition_id = ? AND ${where} AND status IN ('pending','confirmed')${exclusionSql}`).bind(input.competitionId, target, ...excludeRegistrationIds).first<Row>();
-    if (Number(count?.total || 0) >= Number(limit.max_registrations)) throw new HttpError(409, 'Registration quota has been reached', 'REGISTRATION_QUOTA_EXCEEDED');
+    const countExpr = !individualEvent && limit.scope !== 'team'
+      ? 'COUNT(DISTINCT COALESCE(NULLIF(team_profile_id, \'\'), club_id))'
+      : 'COUNT(*)';
+    const count = await env.REGISTRATION_DB.prepare(`SELECT ${countExpr} AS total FROM registrations WHERE competition_id = ? AND ${where} AND status IN ('pending','confirmed')${exclusionSql}`).bind(input.competitionId, target, ...excludeRegistrationIds).first<Row>();
+    // 同一份替换清单里的多项要互相预留名额，避免逐项校验时都看到旧记录被排除后的空位。
+    const reservationKey = `${limit.scope}:${target}`;
+    const reserved = quotaReservations?.get(reservationKey) || 0;
+    if (Number(count?.total || 0) + reserved >= max) {
+      throw new HttpError(409, individualEvent ? 'Registration quota has been reached' : 'This event is full: only one entry per team is allowed', 'REGISTRATION_QUOTA_EXCEEDED');
+    }
+    quotaReservations?.set(reservationKey, reserved + 1);
   }
 }
 /**
@@ -276,7 +297,7 @@ async function buildClubRegistration(
       throw new HttpError(422, '混合组必须至少包含一名男运动员和一名女运动员，请调整队员', 'MIXED_GROUP_NEEDS_BOTH_GENDERS');
     }
   }
-  await assertLimits(env, input, event, actor.userId, excludeRegistrationIds);
+  await assertLimits(env, input, event, actor.userId, excludeRegistrationIds, quotaReservations);
   const coach = input.coachId ? await env.REGISTRATION_DB.prepare('SELECT name FROM coaches WHERE id = ?').bind(input.coachId).first<Row>() : null;
   return { athletes, registration: { id: crypto.randomUUID(), competition_id: input.competitionId, club_id: actor.userId, team_profile_id: input.teamProfileId || null, club_name: String(club.club_name), event_id: input.eventId, event_name: String(event.name), group_id: input.groupId, group_name: String(event.group_name), athletes: JSON.stringify(input.athleteIds.map(athleteId => ({ athleteId, name: athletes.find(item => item.id === athleteId)?.name }))), coach_id: input.coachId || null, coach_name: coach?.name || null, status: 'pending' } };
 }
