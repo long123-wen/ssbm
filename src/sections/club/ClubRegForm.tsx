@@ -1287,7 +1287,7 @@ function RegFormLockedPanel({
             </div>
             <div className="px-5 py-4 border-t border-slate-100">
               <Button onClick={onSubmit} disabled={submitting || tempRegs.length === 0 || (submittedLocked && !adminEditUnlocked) || deadlineBlocked} className="w-full rounded-full bg-emerald-400 hover:bg-emerald-500 text-white h-12 disabled:bg-slate-200 disabled:text-slate-500">
-                {submitting ? '提交中...' : adminEditUnlocked ? '确认修改后的项目清单并提交' : deadlineBtnLabel || '确认项目清单并缴费报名'}
+                {submitting ? '提交中...' : adminEditUnlocked ? '确认修改后的项目清单并提交' : deadlineBtnLabel || '确认项目清单并提交报名'}
               </Button>
             </div>
           </div>
@@ -1309,11 +1309,11 @@ function RegFormLockedPanel({
                   {adminEditUnlocked ? '管理员已允许修改报名项目' : submittedLocked ? '报名已提交，界面已锁定' : `已报名项目（${tempRegs.length}项）`}
                   {filledPanelOpen ? <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />}
                 </div>
-                <div className="text-xs text-slate-500 mt-1 truncate">{adminEditUnlocked ? '请修改项目后重新提交，最终清单将覆盖原报名信息' : submittedLocked ? '报名信息已提交，当前报名界面不可再次操作' : '点击查看项目清单并确认缴费报名'}</div>
+                <div className="text-xs text-slate-500 mt-1 truncate">{adminEditUnlocked ? '请修改项目后重新提交，最终清单将覆盖原报名信息' : submittedLocked ? '报名信息已提交，当前报名界面不可再次操作' : '点击查看项目清单并提交报名'}</div>
               </button>
               <div className="flex items-center px-3 sm:px-5 lg:px-6 border-l border-slate-100">
                 <Button type="button" onClick={onOpenPanel} disabled={(submittedLocked && !adminEditUnlocked) || submitting || tempRegs.length === 0 || deadlineBlocked} className={`rounded-full px-5 sm:px-8 h-11 whitespace-nowrap ${(submittedLocked && !adminEditUnlocked) || deadlineBlocked ? 'bg-slate-200 text-slate-600 hover:bg-slate-200' : 'bg-emerald-400 hover:bg-emerald-500 text-white'}`}>
-                  {adminEditUnlocked ? '查看修改后的项目清单' : submittedLocked ? '报名已提交' : deadlineBtnLabel || '查看项目清单并缴费报名'}
+                  {adminEditUnlocked ? '查看修改后的项目清单' : submittedLocked ? '报名已提交' : deadlineBtnLabel || '查看项目清单并提交报名'}
                 </Button>
               </div>
             </div>
