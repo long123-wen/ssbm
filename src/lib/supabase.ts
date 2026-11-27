@@ -52,7 +52,7 @@ type UploadOptions = {
 };
 
 const API_TIMEOUT_MS = 15_000;
-const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const configuredApiBase = String(import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const API_BASE_URL = (configuredApiBase || '/api').replace(/\/+$/, '');
 
@@ -325,7 +325,7 @@ class StorageBucket {
     if (file.size > MAX_UPLOAD_BYTES) {
       return {
         data: null,
-        error: { message: '文件大小不能超过 2MiB', code: 'FILE_TOO_LARGE', status: 413 },
+        error: { message: '文件大小不能超过 10MiB', code: 'FILE_TOO_LARGE', status: 413 },
         count: null,
       };
     }

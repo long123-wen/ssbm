@@ -52,9 +52,15 @@ import {
 } from './_shared/rate-limit';
 
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
-const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_USERNAME_LENGTH = 100;
 const MAX_PASSWORD_LENGTH = 256;
+
+/** 身份证照片存放在 idcard/<clubId>/...，归属段应取第二段而不是 idcard */
+function storageOwnerSegment(pathOnly: string): string {
+  const parts = pathOnly.split('/').filter(Boolean);
+  return parts[0] === 'idcard' ? (parts[1] || '') : (parts[0] || '');
+}
 
 function pathSegments(request: Request): string[] {
   return new URL(request.url).pathname.split('/').filter(Boolean).map(segment => {
@@ -161,17 +167,17 @@ async function storage(request: Request, env: Env, id: string, segments: string[
   }
   const { bucket, key } = objectKey(segments);
   if (request.method === 'GET') {
-    // Athlete avatars are private. We require a session and verify that the
-    // first path segment of the object key equals the club owner (for club
-    // sessions) or accept any admin. Without this check anyone with a guessable
-    // URL could enumerate athlete photos.
+    // Athlete photos are private. We require a session and verify that the
+    // owner segment of the object key equals the club owner (for club
+    // sessions) or accept any admin. ID-card photos use idcard/<clubId>/...,
+    // so the owner segment is the second part.
     const session = await requireSession(request, env, ['club', 'admin']);
     const pathOnly = key.slice(bucket.length + 1);
-    const firstSegment = pathOnly.split('/').filter(Boolean)[0] || '';
-    if (!firstSegment || firstSegment.includes('\\') || firstSegment === '.' || firstSegment === '..') {
+    const ownerSegment = storageOwnerSegment(pathOnly);
+    if (!ownerSegment || ownerSegment.includes('\\') || ownerSegment === '.' || ownerSegment === '..') {
       throw new HttpError(400, 'Invalid object key', 'INVALID_OBJECT_KEY');
     }
-    if (session.role === 'club' && firstSegment !== session.userId) {
+    if (session.role === 'club' && ownerSegment !== session.userId) {
       waitUntil(audit(env, id, request, session, 'storage.get.forbidden', bucket, key));
       throw new HttpError(403, 'You do not have access to this resource', 'FORBIDDEN_RESOURCE');
     }
@@ -195,19 +201,19 @@ async function storage(request: Request, env: Env, id: string, segments: string[
     // club session's userId. Admins can write on behalf of any club.
     const session = actor;
     const pathOnly = key.slice(bucket.length + 1);
-    const firstSegment = pathOnly.split('/').filter(Boolean)[0] || '';
-    if (!firstSegment) {
+    const ownerSegment = storageOwnerSegment(pathOnly);
+    if (!ownerSegment) {
       throw new HttpError(400, 'Invalid object key', 'INVALID_OBJECT_KEY');
     }
-    if (session.role === 'club' && firstSegment !== session.userId) {
+    if (session.role === 'club' && ownerSegment !== session.userId) {
       throw new HttpError(403, 'You do not have access to this resource', 'FORBIDDEN_RESOURCE');
     }
     const mime = (request.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
     if (!IMAGE_TYPES.has(mime)) throw new HttpError(415, 'Only JPEG, PNG, WebP, GIF and AVIF images are accepted', 'INVALID_IMAGE_TYPE');
     const declaredLength = Number(request.headers.get('Content-Length') || '0');
-    if (declaredLength > MAX_IMAGE_BYTES) throw new HttpError(413, 'Image exceeds 2 MiB', 'IMAGE_TOO_LARGE');
+    if (declaredLength > MAX_IMAGE_BYTES) throw new HttpError(413, 'Image exceeds 10 MiB', 'IMAGE_TOO_LARGE');
     const bytes = await request.arrayBuffer();
-    if (!bytes.byteLength || bytes.byteLength > MAX_IMAGE_BYTES) throw new HttpError(413, 'Image must be between 1 byte and 2 MiB', 'IMAGE_TOO_LARGE');
+    if (!bytes.byteLength || bytes.byteLength > MAX_IMAGE_BYTES) throw new HttpError(413, 'Image must be between 1 byte and 10 MiB', 'IMAGE_TOO_LARGE');
     await env.REGISTRATION_MEDIA.put(key, bytes, {
       httpMetadata: { contentType: mime, cacheControl: 'private, max-age=300' },
       customMetadata: { uploadedBy: actor.userId, actorRole: actor.role },
@@ -218,11 +224,11 @@ async function storage(request: Request, env: Env, id: string, segments: string[
   if (request.method === 'DELETE') {
     // Deletes also enforce club ownership.
     const pathOnly = key.slice(bucket.length + 1);
-    const firstSegment = pathOnly.split('/').filter(Boolean)[0] || '';
-    if (!firstSegment) {
+    const ownerSegment = storageOwnerSegment(pathOnly);
+    if (!ownerSegment) {
       throw new HttpError(400, 'Invalid object key', 'INVALID_OBJECT_KEY');
     }
-    if (actor.role === 'club' && firstSegment !== actor.userId) {
+    if (actor.role === 'club' && ownerSegment !== actor.userId) {
       throw new HttpError(403, 'You do not have access to this resource', 'FORBIDDEN_RESOURCE');
     }
     await env.REGISTRATION_MEDIA.delete(key);

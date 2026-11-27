@@ -98,7 +98,7 @@ const MEDIA: Record<string, string> = {
   INVALID_OBJECT_KEY: '对象路径无效',
   OBJECT_NOT_FOUND: '未找到对应的文件',
   INVALID_IMAGE_TYPE: '仅支持 JPEG、PNG、WebP、GIF、AVIF 格式的图片',
-  IMAGE_TOO_LARGE: '图片大小超过 2MB 上限',
+  IMAGE_TOO_LARGE: '图片大小超过 10MB 上限',
 };
 
 // === 数据库代理 ===

@@ -249,13 +249,9 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
             } catch { /* 忽略旧文件删除错误 */ }
           }
         } catch (uploadErr: any) {
-          // Storage 不可用，回退到 base64
-          console.warn('Storage upload failed, falling back to base64:', uploadErr.message);
-          const reader = new FileReader();
-          avatarUrl = await new Promise<string>((resolve) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(avatarFile);
-          });
+          // 不再回退 base64：大图 base64 会让数据库写入触发 413，报出误导性的「上传内容超过大小限制」
+          console.error('免冠照片上传失败:', uploadErr);
+          throw new Error('免冠照片上传失败，请重试或换一张图片');
         } finally {
           setAvatarUploading(false);
         }
@@ -286,12 +282,8 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
             } catch { /* 忽略 */ }
           }
         } catch (uploadErr: any) {
-          console.warn('身份证照片上传失败，回退到 base64:', uploadErr.message);
-          const reader = new FileReader();
-          idCardPhoto = await new Promise<string>((resolve) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(idCardFile);
-          });
+          console.error('身份证照片上传失败:', uploadErr);
+          throw new Error('身份证照片上传失败，请重试或换一张图片');
         } finally {
           setIdCardPhotoUploading(false);
         }
