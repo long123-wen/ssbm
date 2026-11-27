@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { CheckCircle2, AlertCircle, Loader2, Trophy, Users, Trash2, Timer, UserPlus, Camera, X, ImageIcon, ChevronUp, ChevronDown } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2, Trophy, Trash2, Timer, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,11 +11,8 @@ import {
   competitionStore, eventStore, groupStore,
   athleteStore, registrationStore, checkLimitViolations, limitConfigStore, liabilityAgreementStore
 } from '@/lib/store';
-import { supabase } from '@/lib/supabase';
-import { validateIdCard, extractBirthDate, extractGender } from '@/lib/idCardValidator';
 import { isGroupEligible } from '@/lib/groupMatcher';
 import { CenterAlert } from '@/components/CenterAlert';
-import { compressImageFile } from '@/lib/imageCompress';
 import { evaluateDeadline, formatDeadlineRemaining, formatDeadlineValue, isCompetitionRegOpen } from '@/lib/deadline';
 import { AGREEMENT_VERSION } from '@/lib/liabilityAgreement';
 import LiabilityAgreementDialog from '@/components/LiabilityAgreementDialog';
@@ -100,15 +97,6 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  // 快速新建运动员
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
-  const [quickAddForm, setQuickAddForm] = useState({ name: '', gender: 'male' as 'male' | 'female', birthDate: '', idCard: '' });
-  const [quickIdCardError, setQuickIdCardError] = useState<string | null>(null);
-  const [quickIdCardTouched, setQuickIdCardTouched] = useState(false);
-  const [quickAvatarFile, setQuickAvatarFile] = useState<File | null>(null);
-  const [quickAvatarPreview, setQuickAvatarPreview] = useState<string | null>(null);
-  const [quickAdding, setQuickAdding] = useState(false);
 
   // 临时报名清单（所有运动员的所有项目）
   const [tempRegs, setTempRegs] = useState<TempReg[]>([]);
@@ -286,122 +274,6 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
     if (!selCompId || typeof window === 'undefined') return;
     window.localStorage.setItem(tempRegistrationStorageKey(club.id, teamProfileId, selCompId), JSON.stringify(tempRegs));
   }, [club.id, teamProfileId, selCompId, tempRegs]);
-
-  // 快速新建运动员
-  const handleQuickIdCardBlur = () => {
-    setQuickIdCardTouched(true);
-    if (!quickAddForm.idCard.trim()) {
-      setQuickIdCardError('请输入身份证号码');
-    } else {
-      const result = validateIdCard(quickAddForm.idCard);
-      setQuickIdCardError(result.valid ? null : (result.error || '身份证号不合法'));
-      if (result.valid) {
-        const birth = extractBirthDate(quickAddForm.idCard);
-        const gender = extractGender(quickAddForm.idCard);
-        const updates: any = {};
-        if (birth) updates.birthDate = birth;
-        if (gender) updates.gender = gender;
-        if (Object.keys(updates).length > 0) {
-          setQuickAddForm(p => ({ ...p, ...updates }));
-        }
-      }
-    }
-  };
-
-  const handleQuickIdCardChange = (value: string) => {
-    setQuickAddForm(p => ({ ...p, idCard: value }));
-    if (quickIdCardTouched) {
-      const result = validateIdCard(value);
-      setQuickIdCardError(result.valid ? null : (result.error || '身份证号不合法'));
-    }
-  };
-
-  const handleQuickAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      e.target.value = '';
-      showAlert('免冠照片仅支持 JPG 或 PNG 格式，请重新选择');
-      return;
-    }
-    // 不限制原图大小：上传前统一压缩到头像尺寸
-    setQuickAvatarFile(file);
-    setQuickAvatarPreview(URL.createObjectURL(file));
-  };
-
-  const clearQuickAvatar = () => {
-    setQuickAvatarFile(null);
-    setQuickAvatarPreview(null);
-  };
-
-  const handleQuickAdd = async () => {
-    if (!quickAddForm.name.trim() || !quickAddForm.birthDate || !quickAddForm.idCard.trim()) {
-      showAlert('请填写姓名、出生日期和身份证号');
-      return;
-    }
-    if (!quickAvatarFile) {
-      showAlert('请上传免冠照片（必填）');
-      return;
-    }
-
-    // 身份证校验
-    const idResult = validateIdCard(quickAddForm.idCard);
-    if (!idResult.valid) {
-      setQuickIdCardTouched(true);
-      setQuickIdCardError(idResult.error || '身份证号不合法');
-      showAlert('身份证号校验失败：' + idResult.error);
-      return;
-    }
-
-    setQuickAdding(true);
-    try {
-      let avatarUrl: string | undefined;
-
-      if (quickAvatarFile) {
-        try {
-          const fileExt = quickAvatarFile.name.split('.').pop()?.toLowerCase() || 'jpg';
-          const fileName = `${club.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
-          // 压缩到头像尺寸再上传（480px / ~30KB）
-          const compressed = await compressImageFile(quickAvatarFile);
-          const { data: uploadData, error: uploadErr } = await supabase.storage
-            .from('athlete-avatars')
-            .upload(fileName, compressed, { upsert: true, contentType: compressed.type || 'image/jpeg' });
-          if (uploadErr) throw uploadErr;
-          const { data: urlData } = supabase.storage.from('athlete-avatars').getPublicUrl(fileName);
-          avatarUrl = urlData.publicUrl;
-        } catch {
-          // 回退到 base64
-          const reader = new FileReader();
-          avatarUrl = await new Promise<string>((resolve) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(quickAvatarFile);
-          });
-        }
-      }
-
-      const created = await athleteStore.create({
-        name: quickAddForm.name.trim(),
-        gender: quickAddForm.gender,
-        birthDate: quickAddForm.birthDate,
-        idCard: quickAddForm.idCard.trim(),
-        clubId: club.id,
-        teamProfileId,
-        competitionId: selCompId,
-        avatarUrl: avatarUrl as any,
-      });
-      setAthletes(prev => [...prev, created]);
-      setShowQuickAdd(false);
-      setQuickAddForm({ name: '', gender: 'male', birthDate: '', idCard: '' });
-      setQuickIdCardError(null);
-      setQuickIdCardTouched(false);
-      setQuickAvatarFile(null);
-      setQuickAvatarPreview(null);
-    } catch (err: any) {
-      showAlert('创建失败：' + (err?.message || '请重试'));
-    } finally {
-      setQuickAdding(false);
-    }
-  };
 
   // 从临时清单中删除
   const removeTempReg = (index: number) => {
@@ -803,9 +675,6 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
         <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2.5 text-amber-700 text-sm">
           <AlertCircle className="w-4 h-4 shrink-0" />
           请先在「团队管理」中添加运动员信息，再进行报名
-          <Button variant="outline" size="sm" onClick={() => !submittedLocked && !deadlineBlocked && setShowQuickAdd(true)} disabled={submittedLocked || deadlineBlocked} className="ml-2 gap-1 text-blue-600 border-blue-200 hover:bg-blue-50">
-            <UserPlus className="w-3.5 h-3.5" />快速新建
-          </Button>
         </div>
       )}
 
@@ -890,7 +759,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
         </>
       )}
 
-      {/* 页面内已填报项目抽屉 + 底部固定栏 + 快速新建运动员弹窗（统一为 RegFormLockedPanel） */}
+      {/* 页面内已填报项目抽屉 + 底部固定栏（统一为 RegFormLockedPanel） */}
       <RegFormLockedPanel
         club={club}
         currentStep={currentStep}
@@ -905,21 +774,6 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
         submitting={submitting}
         onRemoveItem={removeTempReg}
         onSubmit={submitAll}
-        showQuickAdd={showQuickAdd}
-        onShowQuickAdd={() => setShowQuickAdd(true)}
-        onCloseQuickAdd={() => setShowQuickAdd(false)}
-        quickAddForm={quickAddForm}
-        onChangeQuickAddForm={setQuickAddForm}
-        quickAvatarPreview={quickAvatarPreview}
-        onPickQuickAvatar={handleQuickAvatarChange}
-        onClearQuickAvatar={clearQuickAvatar}
-        quickIdCardTouched={quickIdCardTouched}
-        quickIdCardError={quickIdCardError}
-        onChangeIdCard={handleQuickIdCardChange}
-        onBlurIdCard={handleQuickIdCardBlur}
-        onSubmitQuickAdd={handleQuickAdd}
-        quickAdding={quickAdding}
-        canShowQuickAddTrigger={athletes.length === 0}
       />
     </div>
   );
@@ -1229,31 +1083,13 @@ interface LockedPanelProps {
   submitting: boolean;
   onRemoveItem: (index: number) => void;
   onSubmit: () => void;
-  showQuickAdd: boolean;
-  onShowQuickAdd: () => void;
-  onCloseQuickAdd: () => void;
-  quickAddForm: { name: string; gender: 'male' | 'female'; birthDate: string; idCard: string };
-  onChangeQuickAddForm: React.Dispatch<React.SetStateAction<{ name: string; gender: 'male' | 'female'; birthDate: string; idCard: string }>>;
-  quickAvatarPreview: string | null;
-  onPickQuickAvatar: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onClearQuickAvatar: () => void;
-  quickIdCardTouched: boolean;
-  quickIdCardError: string | null;
-  onChangeIdCard: (v: string) => void;
-  onBlurIdCard: () => void;
-  onSubmitQuickAdd: () => void;
-  quickAdding: boolean;
-  canShowQuickAddTrigger: boolean;
 }
 
-/** LockedPanel：底部固定栏 + 已填报抽屉 + 快速新建运动员弹窗（行 967-1131 段） */
+/** LockedPanel：底部固定栏 + 已填报抽屉 */
 function RegFormLockedPanel({
   club, currentStep, tempRegs, filledPanelOpen, onOpenPanel, onClosePanel,
   submittedLocked, adminEditUnlocked, deadlineInfo, deadlineLabel, submitting,
-  onRemoveItem, onSubmit, showQuickAdd, onShowQuickAdd, onCloseQuickAdd,
-  quickAddForm, onChangeQuickAddForm, quickAvatarPreview, onPickQuickAvatar, onClearQuickAvatar,
-  quickIdCardTouched, quickIdCardError, onChangeIdCard, onBlurIdCard, onSubmitQuickAdd,
-  quickAdding,
+  onRemoveItem, onSubmit,
 }: LockedPanelProps) {
   const showDrawer = filledPanelOpen && tempRegs.length > 0 && currentStep === 'catalog' && (!submittedLocked || adminEditUnlocked);
   const showBottomBar = currentStep === 'catalog';
@@ -1333,101 +1169,6 @@ function RegFormLockedPanel({
         </div>
       )}
 
-      {/* 快速新建运动员弹窗 */}
-      {showQuickAdd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onCloseQuickAdd}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-slate-800">快速新建运动员</h3>
-              <button onClick={onCloseQuickAdd} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100">
-                <Trash2 className="w-4 h-4 text-slate-400" />
-              </button>
-            </div>
-            <div className="space-y-3">
-              <div className="flex flex-col items-center gap-1.5">
-                <div className="relative group">
-                  {quickAvatarPreview ? (
-                    <img src={quickAvatarPreview} alt="照片预览" className="w-20 h-20 rounded-full object-cover border-2 border-slate-200 shadow-sm" />
-                  ) : (
-                    <div className="w-20 h-20 rounded-full bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center">
-                      <ImageIcon className="w-6 h-6 text-slate-300" />
-                    </div>
-                  )}
-                  <label className="absolute bottom-0 right-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer shadow hover:bg-blue-700 transition-colors">
-                    <Camera className="w-3 h-3 text-white" />
-                    <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={onPickQuickAvatar} />
-                  </label>
-                  {quickAvatarPreview && (
-                    <button onClick={onClearQuickAvatar} className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white shadow hover:bg-red-600 transition-colors">
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-                <p className="text-[10px] text-slate-500">免冠照片 <span className="text-red-500">*</span>（JPG/PNG）</p>
-              </div>
-
-              <div>
-                <Label className="text-sm">姓名 <span className="text-red-400">*</span></Label>
-                <Input className="mt-1" placeholder="运动员姓名" value={quickAddForm.name}
-                  onChange={e => onChangeQuickAddForm(p => ({ ...p, name: e.target.value }))} />
-              </div>
-              <div>
-                <Label className="text-sm">性别 <span className="text-red-400">*</span></Label>
-                <Select value={quickAddForm.gender} onValueChange={v => onChangeQuickAddForm(p => ({ ...p, gender: v as 'male' | 'female' }))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">男</SelectItem>
-                    <SelectItem value="female">女</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-sm">出生日期 <span className="text-red-400">*</span></Label>
-                <Input className="mt-1" type="date" value={quickAddForm.birthDate}
-                  onChange={e => onChangeQuickAddForm(p => ({ ...p, birthDate: e.target.value }))} />
-              </div>
-              <div>
-                <Label className="text-sm">身份证号 <span className="text-red-400">*</span></Label>
-                <div className="relative">
-                  <Input
-                    className={`mt-1 ${quickIdCardTouched && quickIdCardError ? 'border-red-400 pr-8 focus-visible:ring-red-300' : quickIdCardTouched && !quickIdCardError && quickAddForm.idCard ? 'border-green-400 pr-8 focus-visible:ring-green-300' : ''}`}
-                    placeholder="18位身份证号码"
-                    value={quickAddForm.idCard}
-                    onChange={e => onChangeIdCard(e.target.value)}
-                    onBlur={onBlurIdCard}
-                    maxLength={18}
-                  />
-                  {quickIdCardTouched && quickAddForm.idCard && (
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                      {quickIdCardError ? (
-                        <AlertCircle className="w-4 h-4 text-red-500" />
-                      ) : (
-                        <CheckCircle2 className="w-4 h-4 text-green-500" />
-                      )}
-                    </span>
-                  )}
-                </div>
-                {quickIdCardTouched && quickIdCardError && (
-                  <p className="text-xs text-red-500 mt-0.5 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />{quickIdCardError}
-                  </p>
-                )}
-                {quickIdCardTouched && !quickIdCardError && quickAddForm.idCard && (
-                  <p className="text-xs text-green-600 mt-0.5 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" />格式正确，已自动填充信息
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="flex gap-3 mt-5">
-              <Button variant="outline" onClick={onCloseQuickAdd} className="flex-1">取消</Button>
-              <Button onClick={onSubmitQuickAdd} disabled={quickAdding || (quickIdCardTouched && !!quickIdCardError)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
-                {quickAdding ? '创建中...' : <><UserPlus className="w-4 h-4" />创建并选中</>}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
