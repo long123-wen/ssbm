@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import ThemeToggle from '@/components/ThemeToggle';
+import { WechatGroupBanner } from '@/components/WechatGroupNotice';
 import ClubTeamManage from './ClubTeamManage';
 import ClubRegForm from './ClubRegForm';
 import ClubMyRegistrations from './ClubMyRegistrations';
@@ -311,6 +312,7 @@ export default function ClubDashboard({
 
         {/* 页面内容 — 手机端底部预留导航栏高度 */}
         <main className="flex-1 overflow-auto pb-16 lg:pb-0">
+          {(page === 'team' || page === 'register') && <WechatGroupBanner />}
           {page === 'team' && <ClubTeamManage clubId={club.id} competitionId={competitionId} teamProfileId={selectedTeamId} />}
           {page === 'register' && <ClubRegForm club={club} competitionId={competitionId} teamProfileId={selectedTeamId} />}
           {page === 'myregs' && <ClubMyRegistrations club={club} competitionId={competitionId} teamProfileId={selectedTeamId} />}

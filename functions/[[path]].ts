@@ -170,26 +170,28 @@ async function storage(request: Request, env: Env, id: string, segments: string[
     // Athlete photos are private. We require a session and verify that the
     // owner segment of the object key equals the club owner (for club
     // sessions) or accept any admin. ID-card photos use idcard/<clubId>/...,
-    // so the owner segment is the second part.
-    const session = await requireSession(request, env, ['club', 'admin']);
+    // so the owner segment is the second part. The WeChat group QR is a
+    // public notice and deliberately skipped from session checks.
     const pathOnly = key.slice(bucket.length + 1);
-    const ownerSegment = storageOwnerSegment(pathOnly);
-    if (!ownerSegment || ownerSegment.includes('\\') || ownerSegment === '.' || ownerSegment === '..') {
-      throw new HttpError(400, 'Invalid object key', 'INVALID_OBJECT_KEY');
-    }
-    if (session.role === 'club' && ownerSegment !== session.userId) {
-      waitUntil(audit(env, id, request, session, 'storage.get.forbidden', bucket, key));
-      throw new HttpError(403, 'You do not have access to this resource', 'FORBIDDEN_RESOURCE');
+    const isPublicNotice = pathOnly === 'wechat-group/qr.jpg';
+    const session = isPublicNotice ? null : await requireSession(request, env, ['club', 'admin']);
+    if (!isPublicNotice) {
+      const ownerSegment = storageOwnerSegment(pathOnly);
+      if (!ownerSegment || ownerSegment.includes('\\') || ownerSegment === '.' || ownerSegment === '..') {
+        throw new HttpError(400, 'Invalid object key', 'INVALID_OBJECT_KEY');
+      }
+      if (session?.role === 'club' && ownerSegment !== session.userId) {
+        waitUntil(audit(env, id, request, session, 'storage.get.forbidden', bucket, key));
+        throw new HttpError(403, 'You do not have access to this resource', 'FORBIDDEN_RESOURCE');
+      }
     }
     const object = await env.REGISTRATION_MEDIA.get(key);
     if (!object || !object.body) throw new HttpError(404, 'Object not found', 'OBJECT_NOT_FOUND');
     const headers = responseHeaders(request, env, id);
     object.writeHttpMetadata(headers);
     headers.set('Content-Type', object.httpMetadata?.contentType || headers.get('Content-Type') || 'application/octet-stream');
-    // Browser <img> requests are same-origin so the session cookie is sent
-    // automatically; keep cache private so a leaked URL cannot be served from
-    // a shared cache once the session is revoked.
-    headers.set('Cache-Control', 'private, max-age=300');
+    // QR notice may be cached briefly; athlete photos stay private.
+    headers.set('Cache-Control', isPublicNotice ? 'public, max-age=60' : 'private, max-age=300');
     headers.set('X-Robots-Tag', 'noindex, nofollow');
     if (object.httpEtag) headers.set('ETag', object.httpEtag);
     return new Response(object.body, { status: 200, headers });

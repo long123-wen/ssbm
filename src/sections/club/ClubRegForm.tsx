@@ -19,6 +19,7 @@ import { compressImageFile } from '@/lib/imageCompress';
 import { evaluateDeadline, formatDeadlineRemaining, formatDeadlineValue, isCompetitionRegOpen } from '@/lib/deadline';
 import { AGREEMENT_VERSION } from '@/lib/liabilityAgreement';
 import LiabilityAgreementDialog from '@/components/LiabilityAgreementDialog';
+import { WechatGroupDialog } from '@/components/WechatGroupNotice';
 import type { Competition, Event, EventGroup, Athlete, ClubAccount, LiabilityAgreement } from '@/types';
 
 interface Props { club: ClubAccount; competitionId: string; teamProfileId: string }
@@ -124,6 +125,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
   const [agreement, setAgreement] = useState<LiabilityAgreement | null>(null);
   const [agreementLoading, setAgreementLoading] = useState(true);
   const [showAgreementDialog, setShowAgreementDialog] = useState(false);
+  const [showWechatDialog, setShowWechatDialog] = useState(false);
 
   // 参考流程：先选项目/组别，再选择队员，最后统一提交
   const [referenceCategory, setReferenceCategory] = useState('全部');
@@ -520,6 +522,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
         setSubmittedLocked(true);
         setFilledPanelOpen(false);
         setCurrentStep('catalog');
+        setShowWechatDialog(true);
       }
       } catch (err: any) {
       const message = err?.message || '请稍后重试';
@@ -745,6 +748,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
         message={alertBox?.message || ''}
         onClose={() => setAlertBox(null)}
       />
+      <WechatGroupDialog open={showWechatDialog} onOpenChange={setShowWechatDialog} />
       <LiabilityAgreementDialog
         open={showAgreementDialog}
         clubId={club.id}
