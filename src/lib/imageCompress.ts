@@ -6,7 +6,7 @@
  *
  * 用法：
  *   compressImageFile(file)           → Blob（可直接 upload）
- *   compressImageToDataUrl(dataUrl)   → dataURL（批量导入等场景）
+ *   compressImageToDataUrl(dataUrl)   → dataURL
  */
 export const AVATAR_MAX_DIM = 480;
 export const AVATAR_QUALITY = 0.82;
@@ -49,7 +49,7 @@ export async function compressImageFile(
   }
 }
 
-/** 把 dataURL 压缩成 JPEG dataURL（批量导入等场景） */
+/** 把 dataURL 压缩成 JPEG dataURL */
 export function compressImageToDataUrl(
   dataUrl: string,
   maxDim = AVATAR_MAX_DIM,
