@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit2, Trash2, UserCheck, GraduationCap, User, Camera, X, AlertCircle, CheckCircle, ImageIcon } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Plus, Edit2, Trash2, UserCheck, GraduationCap, User, Download, Upload, FileSpreadsheet, Camera, X, AlertCircle, CheckCircle, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,9 @@ import { CenterAlert } from '@/components/CenterAlert';
 import { leaderStore, coachStore, athleteStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { validateIdCard, extractBirthDate, extractGender } from '@/lib/idCardValidator';
-import { compressImageFile } from '@/lib/imageCompress';
+import { compressImageToDataUrl, compressImageFile } from '@/lib/imageCompress';
+import { extractSheetPhotos } from '@/lib/xlsxPhotos';
+import * as XLSX from 'xlsx';
 import type { TeamLeader, Coach, Athlete } from '@/types';
 
 interface Props { clubId: string; competitionId: string; teamProfileId: string }
@@ -47,9 +49,21 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
   const [idCardPreview, setIdCardPreview] = useState<string | null>(null);
   const [idCardPhotoUploading, setIdCardPhotoUploading] = useState(false);
   const [deleteAthleteId, setDeleteAthleteId] = useState<string | null>(null);
-  // 居中提示（照片超限 / 必填校验），比角落 toast 更醒目
+  // 居中提示（必填校验），比角落 toast 更醒目
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const showAlert = (message: string) => setAlertMsg(message);
+
+  // 批量上传
+  const [batchType, setBatchType] = useState<'athlete' | null>(null);
+  const [batchFile, setBatchFile] = useState<File | null>(null);
+  const [batchData, setBatchData] = useState<any[]>([]);
+  const [batchHeaders, setBatchHeaders] = useState<string[]>([]);
+  const [batchImporting, setBatchImporting] = useState(false);
+  const [batchResult, setBatchResult] = useState<{ success: number; photoUploaded: number; photoSkipped: number; errors: string[] } | null>(null);
+  const [batchPhotoMap, setBatchPhotoMap] = useState<Map<number, string>>(new Map());
+  const [batchRowIndex, setBatchRowIndex] = useState<number[]>([]);
+  const [batchPhotoLoading, setBatchPhotoLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [deleteCoachId, setDeleteCoachId] = useState<string | null>(null);
   const [deleteLeaderId, setDeleteLeaderId] = useState<string | null>(null);
 
@@ -136,13 +150,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
       return;
     }
 
-    // 校验大小（2MB）：超限用居中弹窗明确告知当前大小
-    if (file.size > 2 * 1024 * 1024) {
-      e.target.value = '';
-      showAlert(`免冠照片大小超过 2MB（当前 ${(file.size / 1024 / 1024).toFixed(1)}MB），请压缩后重新上传`);
-      return;
-    }
-
+    // 不限制原图大小：上传前统一压缩到头像尺寸，超大图由浏览器解码压缩（约几秒）
     setAvatarFile(file);
     const preview = URL.createObjectURL(file);
     setAvatarPreview(preview);
@@ -166,11 +174,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
       showAlert('身份证照片仅支持 JPG 或 PNG 格式，请重新选择');
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      e.target.value = '';
-      showAlert(`身份证照片大小超过 2MB（当前 ${(file.size / 1024 / 1024).toFixed(1)}MB），请压缩后重新上传`);
-      return;
-    }
+    // 不限制原图大小：上传前统一压缩到 1200px，保留证件文字清晰度
     setIdCardFile(file);
     setIdCardPreview(URL.createObjectURL(file));
   };
@@ -368,6 +372,218 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
     setADialog(true);
   };
 
+  // ========== 批量上传逻辑 ==========
+  const formatDate = (val: any): string => {
+    // 本地时区取年月日；toISOString() 是 UTC，东八区早 8 点会少算一天
+    const localYMD = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (!val) return '';
+    if (val instanceof Date) return isNaN(val.getTime()) ? '' : localYMD(val);
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number') {
+      const d = new Date((val - 25569) * 86400000);
+      return isNaN(d.getTime()) ? '' : localYMD(d);
+    }
+    return '';
+  };
+
+  /** dataURL 图片上传到 athlete-avatars，返回公开 URL；失败返回 null */
+  const uploadAthleteAvatarFromDataUrl = async (dataUrl: string): Promise<string | null> => {
+    try {
+      const m = /^data:image\/([a-z0-9+.-]+);base64,(.+)$/i.exec(dataUrl);
+      if (!m) return null;
+      const ext = m[1].toLowerCase().replace('jpeg', 'jpg');
+      const bin = atob(m[2]);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const fileName = `${clubId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const blob = new Blob([bytes], { type: `image/${ext}` });
+      const { error: upErr } = await supabase.storage
+        .from('athlete-avatars')
+        .upload(fileName, blob, { upsert: true, contentType: `image/${ext}` });
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from('athlete-avatars').getPublicUrl(fileName);
+      return urlData.publicUrl;
+    } catch (err) {
+      console.warn('batch avatar upload failed:', err);
+      return null;
+    }
+  };
+
+  /** 检测单元格值是否为图片 base64（dataURL 或裸 base64） */
+  const extractPhotoDataUrl = (val: any): string | null => {
+    if (typeof val !== 'string') return null;
+    const s = val.trim();
+    if (!s) return null;
+    if (/^data:image\/[a-z0-9+.-]+;base64,/i.test(s)) return s;
+    if (s.length >= 80 && /^[A-Za-z0-9+/=]+$/.test(s)) return `data:image/jpeg;base64,${s}`;
+    return null;
+  };
+
+  const handleBatchFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBatchFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = new Uint8Array(ev.target!.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet) as Record<string, any>[];
+        if (jsonData.length === 0) { toast.error('文件中没有数据'); return; }
+        setBatchHeaders(Object.keys(jsonData[0]));
+        setBatchData(jsonData);
+        setBatchResult(null);
+        setBatchPhotoLoading(true);
+        const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null }) as any[][];
+        const header: any[] = rawRows[0] || [];
+        const nameCol = header.findIndex(h => String(h || '').trim() === '姓名');
+        const idCol = header.findIndex(h => String(h || '').trim() === '身份证号');
+        const rowsIdx = jsonData.map(row => {
+          const n = String(row['姓名'] || '').trim();
+          const idc = String(row['身份证号'] || '').trim();
+          for (let k = 1; k < rawRows.length; k++) {
+            const rn = nameCol >= 0 ? String(rawRows[k]?.[nameCol] ?? '').trim() : '';
+            const ri = idCol >= 0 ? String(rawRows[k]?.[idCol] ?? '').trim() : '';
+            if ((idc && ri && ri === idc) || (n && rn && rn === n)) return k;
+          }
+          return -1;
+        });
+        setBatchRowIndex(rowsIdx);
+        extractSheetPhotos(file).then(map => {
+          setBatchPhotoMap(map);
+          setBatchPhotoLoading(false);
+          const count = rowsIdx.filter(r => r >= 0 && map.has(r)).length;
+          if (count > 0) toast.success(`识别到 ${count} 张单元格内图片`);
+        }).catch(() => setBatchPhotoLoading(false));
+      } catch (err: any) {
+        toast.error('文件解析失败：' + (err.message || '请检查文件格式'));
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleBatchImport = async () => {
+    if (batchData.length === 0) return;
+    setBatchImporting(true);
+    setBatchResult(null);
+    const errors: string[] = [];
+    const inputs: any[] = [];
+
+    for (let i = 0; i < batchData.length; i++) {
+      const row = batchData[i];
+      try {
+        const name = String(row['姓名'] || '').trim();
+        if (!name) { errors.push(`第${i + 2}行：缺少姓名`); continue; }
+        const idCard = String(row['身份证号'] || '').trim();
+        const check = validateIdCard(idCard);
+        if (!check.valid) { errors.push(`第${i + 2}行：身份证号无效（${check.error || '格式错误'}）`); continue; }
+        // 照片优先取单元格内嵌图，其次取「照片」列的 base64
+        const sheetRow = batchRowIndex[i];
+        const embedded = sheetRow !== undefined && sheetRow >= 0 ? batchPhotoMap.get(sheetRow) : undefined;
+        const photo = embedded || extractPhotoDataUrl(row['照片']);
+        // 出生日期/性别优先按身份证号自动推导（避免 Excel 填错）
+        const birth = extractBirthDate(idCard) || formatDate(row['出生日期']);
+        const gender = extractGender(idCard) || (String(row['性别'] || '') === '女' ? 'female' : 'male');
+        inputs.push({
+          rowIndex: i,
+          data: { clubId, competitionId, teamProfileId, name, gender, birthDate: birth, idCard },
+          photo,
+        });
+      } catch {
+        errors.push(`第${i + 2}行：数据格式错误`);
+      }
+    }
+
+    if (inputs.length === 0) {
+      setBatchResult({ success: 0, photoUploaded: 0, photoSkipped: 0, errors });
+      setBatchImporting(false);
+      return;
+    }
+
+    // 串行上传照片（压缩后逐张传，避免并发限流）
+    let photoUploaded = 0, photoSkipped = 0;
+    const photoResults: (string | null)[] = [];
+    for (const it of inputs) {
+      if (!it.photo) { photoResults.push(null); continue; }
+      try {
+        const compressed = await compressImageToDataUrl(it.photo);
+        const url = await uploadAthleteAvatarFromDataUrl(compressed);
+        if (url) photoUploaded++; else photoSkipped++;
+        photoResults.push(url);
+      } catch {
+        photoSkipped++;
+        photoResults.push(null);
+      }
+    }
+    const finalInputs = inputs.map((it, idx) => ({ ...it.data, avatarUrl: photoResults[idx] || undefined }));
+
+    try {
+      // upsert：身份证号已存在只补/换头像，不重复插入
+      const existingByCard = new Map(athletes.map(a => [String(a.idCard || '').trim(), a] as const));
+      const toCreate: typeof finalInputs = [];
+      const photoUpdates: Promise<unknown>[] = [];
+      let photoUpdated = 0;
+      for (const inp of finalInputs) {
+        const exist = existingByCard.get(inp.idCard);
+        if (exist) {
+          if (inp.avatarUrl) {
+            photoUpdated++;
+            photoUpdates.push(athleteStore.update(exist.id, { avatarUrl: inp.avatarUrl }));
+          }
+        } else {
+          toCreate.push(inp);
+        }
+      }
+      await Promise.all(photoUpdates);
+      const result = await athleteStore.batchCreate(toCreate);
+      setBatchResult({ success: result.length + photoUpdated, photoUploaded, photoSkipped, errors });
+      const summary = [];
+      if (result.length) summary.push(`新增 ${result.length} 名`);
+      if (photoUpdated) summary.push(`更新 ${photoUpdated} 名的照片`);
+      if (!result.length && !photoUpdated) summary.push('没有新数据（所有运动员已存在）');
+      if (photoUploaded) summary.push(`上传照片 ${photoUploaded} 张`);
+      if (photoSkipped) summary.push(`${photoSkipped} 张照片无效（已跳过）`);
+      toast.success(summary.join('，'));
+      load();
+    } catch (err: any) {
+      toast.error('导入失败：' + (err.message || '未知错误'));
+    } finally {
+      setBatchImporting(false);
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    const templateData = [{
+      '姓名': '张三', '性别': '男', '出生日期': '2010-01-01', '身份证号': '110101201001011234', '照片': '',
+    }];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    XLSX.utils.sheet_add_aoa(ws, [['姓名', '性别', '出生日期', '身份证号', '照片']], { origin: 'A1' });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '运动员_模板.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const closeBatchDialog = () => {
+    setBatchType(null);
+    setBatchFile(null);
+    setBatchData([]);
+    setBatchHeaders([]);
+    setBatchResult(null);
+    setBatchPhotoMap(new Map());
+    setBatchRowIndex([]);
+    setBatchPhotoLoading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   // 顶部 3 张统计卡片（依赖 3 个 list 长度，未变时复用同一引用）
   const summaryCards = useMemo(() => [
     { label: '领队', count: leaders.length, icon: <UserCheck className="w-4 h-4 sm:w-5 sm:h-5" />, color: 'blue' },
@@ -413,6 +629,8 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
           onAdd={() => openAthlete()}
           onEdit={openAthlete}
           onDelete={setDeleteAthleteId}
+          onBatchUpload={() => setBatchType('athlete')}
+          onDownloadTemplate={handleDownloadTemplate}
         />
 
         <CoachesTab
@@ -486,7 +704,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
                   </button>
                 )}
               </div>
-              <p className="text-xs text-slate-500">免冠照片 <span className="text-red-500">*</span>（JPG/PNG，≤2MB，必填）</p>
+              <p className="text-xs text-slate-500">免冠照片 <span className="text-red-500">*</span>（JPG/PNG，大小不限，上传自动压缩）</p>
             </div>
 
             {/* 身份证照片上传（必填，敏感信息） */}
@@ -508,7 +726,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
                 </div>
                 <div className="flex-1 min-w-0">
                   <Label className="text-amber-900">身份证照片 <span className="text-red-500">*</span></Label>
-                  <p className="text-[11px] text-amber-700/80 mt-0.5">上传身份证人像面，需清晰可辨（JPG/PNG，≤2MB）</p>
+                  <p className="text-[11px] text-amber-700/80 mt-0.5">上传身份证人像面，需清晰可辨（JPG/PNG，大小不限，上传自动压缩）</p>
                   <label className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 cursor-pointer">
                     <Camera className="w-3.5 h-3.5" />
                     {idCardPreview ? '重新上传' : '点击上传'}
@@ -643,6 +861,107 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* ====== 批量上传弹窗 ====== */}
+      <Dialog open={!!batchType} onOpenChange={(open) => { if (!open) closeBatchDialog(); }}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5 text-green-600" />
+              批量上传运动员
+            </DialogTitle>
+          </DialogHeader>
+
+          {batchData.length === 0 ? (
+            <div className="space-y-4">
+              <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-blue-400 transition-colors">
+                <FileSpreadsheet className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-sm text-slate-600 mb-1">将 Excel 文件拖拽到此处，或点击选择</p>
+                <p className="text-xs text-slate-400 mb-4">支持 .xlsx / .xls 格式；模板含「照片」列（可选，填图片 base64）；嵌入单元格的照片会自动识别</p>
+                <div className="flex gap-2 justify-center">
+                  <Button variant="outline" size="sm" className="h-9 gap-1" onClick={() => handleDownloadTemplate()}>
+                    <Download className="w-3.5 h-3.5" />下载模板
+                  </Button>
+                  <Button size="sm" className="h-9 gap-1" onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="w-3.5 h-3.5" />选择文件
+                  </Button>
+                </div>
+                <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleBatchFileChange} />
+                {batchPhotoLoading && <p className="text-xs text-blue-600 mt-3">正在识别表格内嵌照片...</p>}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-700">数据预览</p>
+                  <p className="text-xs text-slate-500">共解析 {batchData.length} 条记录，确认后导入</p>
+                  {batchPhotoMap.size > 0 && (
+                    <p className="text-xs text-green-600 mt-0.5">已识别 {batchPhotoMap.size} 张嵌入照片，导入时自动压缩并上传</p>
+                  )}
+                </div>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setBatchData([]); setBatchFile(null); setBatchResult(null); setBatchPhotoMap(new Map()); if (fileInputRef.current) fileInputRef.current.value = ''; }}>
+                  重新选择
+                </Button>
+              </div>
+
+              <div className="border rounded-lg overflow-x-auto max-h-60">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 sticky top-0">
+                    <tr>
+                      <th className="text-left px-3 py-2 text-slate-500 font-medium">#</th>
+                      {batchHeaders.map(h => (
+                        <th key={h} className="text-left px-3 py-2 text-slate-500 font-medium whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {batchData.map((row, i) => (
+                      <tr key={i} className="border-t hover:bg-slate-50">
+                        <td className="px-3 py-1.5 text-slate-400">{i + 1}</td>
+                        {batchHeaders.map(h => (
+                          <td key={h} className="px-3 py-1.5 whitespace-nowrap">
+                            {h === '照片' && batchPhotoMap.has(i)
+                              ? <span className="text-green-600">[已识别嵌入照片]</span>
+                              : row[h] != null && String(row[h]).startsWith('data:image')
+                                ? <span className="text-green-600">[照片 base64]</span>
+                                : row[h] != null ? String(row[h]) : ''}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {batchResult && (
+                <div className={`rounded-lg p-3 text-sm ${batchResult.errors.length > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-green-50 border border-green-200'}`}>
+                  <p className="font-medium">成功导入 {batchResult.success} 条</p>
+                  {(batchResult.photoUploaded > 0 || batchResult.photoSkipped > 0) && (
+                    <p className="text-xs mt-1 text-slate-600">
+                      上传照片 {batchResult.photoUploaded} 张
+                      {batchResult.photoSkipped > 0 && `，${batchResult.photoSkipped} 张无效已跳过`}
+                    </p>
+                  )}
+                  {batchResult.errors.length > 0 && (
+                    <div className="mt-2 max-h-32 overflow-y-auto">
+                      {batchResult.errors.map((e, i) => (
+                        <p key={i} className="text-xs text-red-600">{e}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button variant="outline" onClick={closeBatchDialog}>关闭</Button>
+                <Button onClick={handleBatchImport} disabled={batchImporting || batchData.length === 0} className="bg-green-600 hover:bg-green-700 text-white">
+                  {batchImporting ? '导入中...' : `确认导入 ${batchData.length} 条`}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -653,14 +972,22 @@ interface AthletesTabProps {
   onAdd: () => void;
   onEdit: (a: Athlete) => void;
   onDelete: (id: string) => void;
+  onBatchUpload: () => void;
+  onDownloadTemplate: () => void;
 }
 
-function AthletesTab({ athletes, onAdd, onEdit, onDelete }: AthletesTabProps) {
+function AthletesTab({ athletes, onAdd, onEdit, onDelete, onBatchUpload, onDownloadTemplate }: AthletesTabProps) {
   return (
     <TabsContent value="athletes" className="p-3 sm:p-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 sm:mb-4 gap-2">
         <span className="text-sm text-slate-600">共 {athletes.length} 名运动员</span>
         <div className="flex gap-2">
+          <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={onDownloadTemplate}>
+            <Download className="w-3 h-3" />模板
+          </Button>
+          <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={onBatchUpload}>
+            <Upload className="w-3 h-3" />批量上传
+          </Button>
           <Button size="sm" onClick={onAdd} className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
             <Plus className="w-3.5 h-3.5" />添加
           </Button>
@@ -668,7 +995,7 @@ function AthletesTab({ athletes, onAdd, onEdit, onDelete }: AthletesTabProps) {
       </div>
       {athletes.length === 0 ? (
         <div className="text-center py-10 text-slate-400 text-sm border border-dashed border-slate-200 rounded-lg">
-          暂无运动员，点击右上角添加
+          暂无运动员，点击右上角添加或批量上传
         </div>
       ) : (
         <div className="space-y-2">

@@ -322,11 +322,7 @@ export default function ClubRegForm({ club, competitionId, teamProfileId }: Prop
       showAlert('免冠照片仅支持 JPG 或 PNG 格式，请重新选择');
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      e.target.value = '';
-      showAlert(`免冠照片大小超过 2MB（当前 ${(file.size / 1024 / 1024).toFixed(1)}MB），请压缩后重新上传`);
-      return;
-    }
+    // 不限制原图大小：上传前统一压缩到头像尺寸
     setQuickAvatarFile(file);
     setQuickAvatarPreview(URL.createObjectURL(file));
   };
@@ -1363,7 +1359,7 @@ function RegFormLockedPanel({
                     </button>
                   )}
                 </div>
-                <p className="text-[10px] text-slate-500">免冠照片 <span className="text-red-500">*</span>（JPG/PNG ≤2MB，必填）</p>
+                <p className="text-[10px] text-slate-500">免冠照片 <span className="text-red-500">*</span>（JPG/PNG，大小不限，上传自动压缩）</p>
               </div>
 
               <div>
