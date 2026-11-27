@@ -7,7 +7,8 @@
  *
  * 用浏览器原生 DecompressionStream('deflate-raw') 解压，避免引入 jszip。
  *
- * @returns Map<行号(0 基, 含表头行 0), 图片 dataURL>
+ * @returns Map<行号(0 基, 含表头行 0), Map<列号(0 基), 图片 dataURL>>
+ *   一行可有多张图（如「免冠照片」「身份证照片」两列），按列号区分。
  */
 type ZipEntry = {
   name: string;
@@ -100,6 +101,17 @@ function mimeOf(path: string): string {
   return 'image/png';
 }
 
+/** Excel 列字母（A/B/...）转 0 基列号 */
+function colToIndex(letters: string): number {
+  let n = 0;
+  for (const ch of (letters || '').toUpperCase()) {
+    const code = ch.charCodeAt(0);
+    if (code < 65 || code > 90) continue;
+    n = n * 26 + (code - 64);
+  }
+  return Math.max(0, n - 1);
+}
+
 /** 解析 rels：Id → Target（已归一化为包内路径） */
 function parseRels(xml: string, baseDir: string): Record<string, string> {
   const map: Record<string, string> = {};
@@ -118,8 +130,13 @@ function parseRels(xml: string, baseDir: string): Record<string, string> {
   return map;
 }
 
-export async function extractSheetPhotos(file: File): Promise<Map<number, string>> {
-  const result = new Map<number, string>();
+export async function extractSheetPhotos(file: File): Promise<Map<number, Map<number, string>>> {
+  const result = new Map<number, Map<number, string>>();
+  const put = (row: number, col: number, dataUrl: string) => {
+    let rowMap = result.get(row);
+    if (!rowMap) { rowMap = new Map<number, string>(); result.set(row, rowMap); }
+    rowMap.set(col, dataUrl);
+  };
   try {
     const buf = new Uint8Array(await file.arrayBuffer());
     const entries = readZipIndex(buf);
@@ -163,7 +180,7 @@ export async function extractSheetPhotos(file: File): Promise<Map<number, string
           const imgId = /DISPIMG\(\s*(?:&quot;|")([^"&]+?)(?:&quot;|")/.exec(m[0])?.[1];
           if (!imgId || !images[imgId]) continue;
           const row = Number(m[2]); // 1 基
-          result.set(row - 1, images[imgId]); // 归一化为 0 基
+          put(row - 1, colToIndex(m[1]), images[imgId]); // 归一化为 0 基
         }
       }
       if (result.size) return result;
@@ -181,11 +198,12 @@ export async function extractSheetPhotos(file: File): Promise<Map<number, string
       while ((a = anchorRe.exec(xml))) {
         const block = a[0];
         const row = /<xdr:row>(\d+)<\/xdr:row>/.exec(block)?.[1];
+        const col = /<xdr:col>(\d+)<\/xdr:col>/.exec(block)?.[1];
         const embed = /r:embed="([^"]+)"/.exec(block)?.[1];
         if (row === undefined || !embed) continue;
         const mediaPath = rels[embed];
         if (!mediaPath || !media[mediaPath]) continue;
-        result.set(Number(row), media[mediaPath]);
+        put(Number(row), col === undefined ? 0 : Number(col), media[mediaPath]);
       }
     }
   } catch (err) {

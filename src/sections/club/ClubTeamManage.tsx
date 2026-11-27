@@ -60,7 +60,8 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
   const [batchHeaders, setBatchHeaders] = useState<string[]>([]);
   const [batchImporting, setBatchImporting] = useState(false);
   const [batchResult, setBatchResult] = useState<{ success: number; photoUploaded: number; photoSkipped: number; errors: string[] } | null>(null);
-  const [batchPhotoMap, setBatchPhotoMap] = useState<Map<number, string>>(new Map());
+  // 行号 -> (列号 -> 图片 dataURL)，一行可有两张嵌入照片（免冠 + 身份证）
+  const [batchPhotoMap, setBatchPhotoMap] = useState<Map<number, Map<number, string>>>(new Map());
   const [batchRowIndex, setBatchRowIndex] = useState<number[]>([]);
   const [batchPhotoLoading, setBatchPhotoLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -387,8 +388,8 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
     return '';
   };
 
-  /** dataURL 图片上传到 athlete-avatars，返回公开 URL；失败返回 null */
-  const uploadAthleteAvatarFromDataUrl = async (dataUrl: string): Promise<string | null> => {
+  /** dataURL 图片上传到 athlete-avatars；kind=idcard 走 idcard/ 前缀，返回公开 URL，失败返回 null */
+  const uploadPhotoFromDataUrl = async (dataUrl: string, kind: 'avatar' | 'idcard' = 'avatar'): Promise<string | null> => {
     try {
       const m = /^data:image\/([a-z0-9+.-]+);base64,(.+)$/i.exec(dataUrl);
       if (!m) return null;
@@ -396,7 +397,8 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
       const bin = atob(m[2]);
       const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const fileName = `${clubId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const prefix = kind === 'idcard' ? `idcard/${clubId}` : clubId;
+      const fileName = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       const blob = new Blob([bytes], { type: `image/${ext}` });
       const { error: upErr } = await supabase.storage
         .from('athlete-avatars')
@@ -454,8 +456,17 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
         extractSheetPhotos(file).then(map => {
           setBatchPhotoMap(map);
           setBatchPhotoLoading(false);
-          const count = rowsIdx.filter(r => r >= 0 && map.has(r)).length;
-          if (count > 0) toast.success(`识别到 ${count} 张单元格内图片`);
+          const avatarCol = header.findIndex(h => ['免冠照片', '头像', '照片'].includes(String(h || '').trim()));
+          const idCardCol = header.findIndex(h => String(h || '').trim() === '身份证照片');
+          const count = rowsIdx.reduce((n, r) => {
+            if (r < 0) return n;
+            const cols = map.get(r);
+            if (!cols) return n;
+            return n
+              + (avatarCol >= 0 && cols.has(avatarCol) ? 1 : 0)
+              + (idCardCol >= 0 && cols.has(idCardCol) ? 1 : 0);
+          }, 0);
+          if (count > 0) toast.success(`识别到 ${count} 张单元格内照片`);
         }).catch(() => setBatchPhotoLoading(false));
       } catch (err: any) {
         toast.error('文件解析失败：' + (err.message || '请检查文件格式'));
@@ -479,17 +490,23 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
         const idCard = String(row['身份证号'] || '').trim();
         const check = validateIdCard(idCard);
         if (!check.valid) { errors.push(`第${i + 2}行：身份证号无效（${check.error || '格式错误'}）`); continue; }
-        // 照片优先取单元格内嵌图，其次取「照片」列的 base64
+        // 照片按列区分：免冠照片（兼容旧「照片」「头像」列），身份证照片
         const sheetRow = batchRowIndex[i];
-        const embedded = sheetRow !== undefined && sheetRow >= 0 ? batchPhotoMap.get(sheetRow) : undefined;
-        const photo = embedded || extractPhotoDataUrl(row['照片']);
+        const embeddedCols = sheetRow !== undefined && sheetRow >= 0 ? batchPhotoMap.get(sheetRow) : undefined;
+        const avatarCol = ['免冠照片', '头像', '照片'].map(h => batchHeaders.indexOf(h)).find(idx => idx >= 0) ?? -1;
+        const idCardCol = batchHeaders.indexOf('身份证照片');
+        const avatarData = (avatarCol >= 0 ? embeddedCols?.get(avatarCol) : undefined)
+          || extractPhotoDataUrl(row['免冠照片'] || row['头像'] || row['照片']);
+        const idCardData = (idCardCol >= 0 ? embeddedCols?.get(idCardCol) : undefined)
+          || extractPhotoDataUrl(row['身份证照片']);
         // 出生日期/性别优先按身份证号自动推导（避免 Excel 填错）
         const birth = extractBirthDate(idCard) || formatDate(row['出生日期']);
         const gender = extractGender(idCard) || (String(row['性别'] || '') === '女' ? 'female' : 'male');
         inputs.push({
           rowIndex: i,
           data: { clubId, competitionId, teamProfileId, name, gender, birthDate: birth, idCard },
-          photo,
+          avatarData,
+          idCardData,
         });
       } catch {
         errors.push(`第${i + 2}行：数据格式错误`);
@@ -504,20 +521,25 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
 
     // 串行上传照片（压缩后逐张传，避免并发限流）
     let photoUploaded = 0, photoSkipped = 0;
-    const photoResults: (string | null)[] = [];
     for (const it of inputs) {
-      if (!it.photo) { photoResults.push(null); continue; }
-      try {
-        const compressed = await compressImageToDataUrl(it.photo);
-        const url = await uploadAthleteAvatarFromDataUrl(compressed);
-        if (url) photoUploaded++; else photoSkipped++;
-        photoResults.push(url);
-      } catch {
-        photoSkipped++;
-        photoResults.push(null);
+      // 免冠照片：压缩到头像尺寸（约 480px）
+      if (it.avatarData) {
+        try {
+          const compressed = await compressImageToDataUrl(it.avatarData);
+          const url = await uploadPhotoFromDataUrl(compressed, 'avatar');
+          if (url) { it.data.avatarUrl = url; photoUploaded++; } else photoSkipped++;
+        } catch { photoSkipped++; }
+      }
+      // 身份证照片：保留 1200px 清晰度，存 idcard/ 路径
+      if (it.idCardData) {
+        try {
+          const compressed = await compressImageToDataUrl(it.idCardData, 1200, 0.85);
+          const url = await uploadPhotoFromDataUrl(compressed, 'idcard');
+          if (url) { it.data.idCardPhoto = url; photoUploaded++; } else photoSkipped++;
+        } catch { photoSkipped++; }
       }
     }
-    const finalInputs = inputs.map((it, idx) => ({ ...it.data, avatarUrl: photoResults[idx] || undefined }));
+    const finalInputs = inputs.map(it => it.data);
 
     try {
       // upsert：身份证号已存在只补/换头像，不重复插入
@@ -528,9 +550,12 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
       for (const inp of finalInputs) {
         const exist = existingByCard.get(inp.idCard);
         if (exist) {
-          if (inp.avatarUrl) {
+          const patch: any = {};
+          if (inp.avatarUrl) patch.avatarUrl = inp.avatarUrl;
+          if (inp.idCardPhoto) patch.idCardPhoto = inp.idCardPhoto;
+          if (patch.avatarUrl || patch.idCardPhoto) {
             photoUpdated++;
-            photoUpdates.push(athleteStore.update(exist.id, { avatarUrl: inp.avatarUrl }));
+            photoUpdates.push(athleteStore.update(exist.id, patch));
           }
         } else {
           toCreate.push(inp);
@@ -543,7 +568,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
       if (result.length) summary.push(`新增 ${result.length} 名`);
       if (photoUpdated) summary.push(`更新 ${photoUpdated} 名的照片`);
       if (!result.length && !photoUpdated) summary.push('没有新数据（所有运动员已存在）');
-      if (photoUploaded) summary.push(`上传照片 ${photoUploaded} 张`);
+      if (photoUploaded) summary.push(`上传照片 ${photoUploaded} 张（免冠/身份证）`);
       if (photoSkipped) summary.push(`${photoSkipped} 张照片无效（已跳过）`);
       toast.success(summary.join('，'));
       load();
@@ -556,10 +581,11 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
 
   const handleDownloadTemplate = () => {
     const templateData = [{
-      '姓名': '张三', '性别': '男', '出生日期': '2010-01-01', '身份证号': '110101201001011234', '照片': '',
+      '姓名': '张三', '性别': '男', '出生日期': '2010-01-01', '身份证号': '110101201001011234',
+      '免冠照片': '', '身份证照片': '',
     }];
     const ws = XLSX.utils.json_to_sheet(templateData);
-    XLSX.utils.sheet_add_aoa(ws, [['姓名', '性别', '出生日期', '身份证号', '照片']], { origin: 'A1' });
+    XLSX.utils.sheet_add_aoa(ws, [['姓名', '性别', '出生日期', '身份证号', '免冠照片', '身份证照片']], { origin: 'A1' });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -582,6 +608,22 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
     setBatchRowIndex([]);
     setBatchPhotoLoading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  /** 预览单元格：两类照片列显示识别状态，避免把超长 base64 撑爆表格 */
+  const renderBatchCell = (h: string, row: any, i: number) => {
+    const isPhotoCol = ['免冠照片', '头像', '照片', '身份证照片'].includes(h);
+    if (!isPhotoCol) return row[h] != null ? String(row[h]) : '';
+    const col = batchHeaders.indexOf(h);
+    const sheetRow = batchRowIndex[i];
+    if (sheetRow !== undefined && sheetRow >= 0 && col >= 0 && batchPhotoMap.get(sheetRow)?.has(col)) {
+      return <span className="text-green-600">[已识别嵌入照片]</span>;
+    }
+    const v = row[h];
+    if (typeof v === 'string' && (v.startsWith('data:image') || (v.length >= 80 && /^[A-Za-z0-9+/=]+$/.test(v)))) {
+      return <span className="text-green-600">[照片 base64]</span>;
+    }
+    return v != null ? String(v) : '';
   };
 
   // 顶部 3 张统计卡片（依赖 3 个 list 长度，未变时复用同一引用）
@@ -876,7 +918,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
               <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-blue-400 transition-colors">
                 <FileSpreadsheet className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                 <p className="text-sm text-slate-600 mb-1">将 Excel 文件拖拽到此处，或点击选择</p>
-                <p className="text-xs text-slate-400 mb-4">支持 .xlsx / .xls 格式；模板含「照片」列（可选，填图片 base64）；嵌入单元格的照片会自动识别</p>
+                <p className="text-xs text-slate-400 mb-4">支持 .xlsx / .xls 格式；模板分「免冠照片」「身份证照片」两列，可填图片 base64，或直接在对应列单元格插入图片（自动压缩上传）</p>
                 <div className="flex gap-2 justify-center">
                   <Button variant="outline" size="sm" className="h-9 gap-1" onClick={() => handleDownloadTemplate()}>
                     <Download className="w-3.5 h-3.5" />下载模板
@@ -896,7 +938,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
                   <p className="text-sm font-medium text-slate-700">数据预览</p>
                   <p className="text-xs text-slate-500">共解析 {batchData.length} 条记录，确认后导入</p>
                   {batchPhotoMap.size > 0 && (
-                    <p className="text-xs text-green-600 mt-0.5">已识别 {batchPhotoMap.size} 张嵌入照片，导入时自动压缩并上传</p>
+                    <p className="text-xs text-green-600 mt-0.5">已识别表格内嵌照片，导入时按列自动压缩并上传到对应位置</p>
                   )}
                 </div>
                 <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setBatchData([]); setBatchFile(null); setBatchResult(null); setBatchPhotoMap(new Map()); if (fileInputRef.current) fileInputRef.current.value = ''; }}>
@@ -919,13 +961,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
                       <tr key={i} className="border-t hover:bg-slate-50">
                         <td className="px-3 py-1.5 text-slate-400">{i + 1}</td>
                         {batchHeaders.map(h => (
-                          <td key={h} className="px-3 py-1.5 whitespace-nowrap">
-                            {h === '照片' && batchPhotoMap.has(i)
-                              ? <span className="text-green-600">[已识别嵌入照片]</span>
-                              : row[h] != null && String(row[h]).startsWith('data:image')
-                                ? <span className="text-green-600">[照片 base64]</span>
-                                : row[h] != null ? String(row[h]) : ''}
-                          </td>
+                          <td key={h} className="px-3 py-1.5 whitespace-nowrap">{renderBatchCell(h, row, i)}</td>
                         ))}
                       </tr>
                     ))}
@@ -938,7 +974,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
                   <p className="font-medium">成功导入 {batchResult.success} 条</p>
                   {(batchResult.photoUploaded > 0 || batchResult.photoSkipped > 0) && (
                     <p className="text-xs mt-1 text-slate-600">
-                      上传照片 {batchResult.photoUploaded} 张
+                      上传照片 {batchResult.photoUploaded} 张（免冠/身份证）
                       {batchResult.photoSkipped > 0 && `，${batchResult.photoSkipped} 张无效已跳过`}
                     </p>
                   )}
