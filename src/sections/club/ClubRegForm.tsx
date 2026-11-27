@@ -1359,7 +1359,7 @@ function RegFormLockedPanel({
                     </button>
                   )}
                 </div>
-                <p className="text-[10px] text-slate-500">免冠照片 <span className="text-red-500">*</span>（JPG/PNG，大小不限，上传自动压缩）</p>
+                <p className="text-[10px] text-slate-500">免冠照片 <span className="text-red-500">*</span>（JPG/PNG）</p>
               </div>
 
               <div>

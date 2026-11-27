@@ -469,7 +469,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
                   </button>
                 )}
               </div>
-              <p className="text-xs text-slate-500">免冠照片 <span className="text-red-500">*</span>（JPG/PNG，大小不限，上传自动压缩）</p>
+              <p className="text-xs text-slate-500">免冠照片 <span className="text-red-500">*</span>（JPG/PNG）</p>
             </div>
 
             {/* 身份证照片上传（必填，敏感信息） */}
@@ -491,7 +491,7 @@ export default function ClubTeamManage({ clubId, competitionId, teamProfileId }:
                 </div>
                 <div className="flex-1 min-w-0">
                   <Label className="text-amber-900">身份证照片 <span className="text-red-500">*</span></Label>
-                  <p className="text-[11px] text-amber-700/80 mt-0.5">上传身份证人像面，需清晰可辨（JPG/PNG，大小不限，上传自动压缩）</p>
+                  <p className="text-[11px] text-amber-700/80 mt-0.5">上传身份证人像面，需清晰可辨（JPG/PNG）</p>
                   <label className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 cursor-pointer">
                     <Camera className="w-3.5 h-3.5" />
                     {idCardPreview ? '重新上传' : '点击上传'}
