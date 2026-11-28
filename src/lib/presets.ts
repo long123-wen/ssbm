@@ -545,28 +545,28 @@ function buildCombinedGroups(): CombinedGroupPreset[] {
   }> = [
     {
       id: 'comb_lr_student_child',
-      name: '儿童组',
+      name: '儿童组不限性别组',
       ageMin: 7, ageMax: 12,
       birthStart: '2014-01-01', birthEnd: '2019-12-31',
       description: '7-12岁（2014-01-01 至 2019-12-31）',
     },
     {
       id: 'comb_lr_student_teen',
-      name: '少年组',
+      name: '少年组不限性别组',
       ageMin: 13, ageMax: 18,
       birthStart: '2008-01-01', birthEnd: '2013-12-31',
       description: '13-18岁（2008-01-01 至 2013-12-31）',
     },
     {
       id: 'comb_lr_citizen_association',
-      name: '协会组',
+      name: '协会组不限性别组',
       ageMin: 18, ageMax: 60,
       birthStart: '1966-01-01', birthEnd: '2008-12-31',
       description: '18-60周岁（1966-01-01 至 2008-12-31）',
     },
     {
       id: 'comb_lr_citizen_agency',
-      name: '机关（企、事业）单位组',
+      name: '机关（企、事业）单位组不限性别组',
       ageMin: 18, ageMax: 60,
       birthStart: '1966-01-01', birthEnd: '2008-12-31',
       description: '18-60周岁（1966-01-01 至 2008-12-31）',
