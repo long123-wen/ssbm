@@ -400,6 +400,8 @@ export interface CombinedGroupPreset {
   isStandalone: boolean;
   /** 所属命名体系（'zh' 中文 / 'u' U系列 / 'common' 通用） */
   namingSystem: NamingSystem;
+  /** 预设弹窗分类：长绳项目「不限性别组」 */
+  displayCategory?: 'no_gender';
   /** 市民组单位类别细分（机关企事业单位/县市/社会协会/社会个人），仅用于展示与统计 */
   unitCategory?: UnitCategoryId;
 }
@@ -529,6 +531,89 @@ function buildCombinedGroups(): CombinedGroupPreset[] {
       }
     }
   }
+
+  // 长绳项目专用分组（图片分组）：均为「不限性别组」，命名体系 common，避免与现有命名体系互斥。
+  // 学生组严格按 2026 年赛事出生日期区间配置；市民组按图片日期 18-60 周岁配置，用户确认不拆老中青。
+  const longRopeGroups: Array<{
+    id: string;
+    name: string;
+    ageMin?: number;
+    ageMax?: number;
+    birthStart?: string;
+    birthEnd?: string;
+    description: string;
+  }> = [
+    {
+      id: 'comb_lr_student_u9',
+      name: '儿童甲组',
+      ageMin: 7, ageMax: 9,
+      birthStart: '2017-01-01', birthEnd: '2019-12-31',
+      description: '7-9岁（2017-01-01 至 2019-12-31）',
+    },
+    {
+      id: 'comb_lr_student_u12',
+      name: '儿童乙组',
+      ageMin: 10, ageMax: 12,
+      birthStart: '2014-01-01', birthEnd: '2016-12-31',
+      description: '10-12岁（2014-01-01 至 2016-12-31）',
+    },
+    {
+      id: 'comb_lr_student_u15',
+      name: '少年甲组',
+      ageMin: 13, ageMax: 15,
+      birthStart: '2011-01-01', birthEnd: '2013-12-31',
+      description: '13-15岁（2011-01-01 至 2013-12-31）',
+    },
+    {
+      id: 'comb_lr_student_u18',
+      name: '少年乙组',
+      ageMin: 16, ageMax: 18,
+      birthStart: '2008-01-01', birthEnd: '2010-12-31',
+      description: '16-18岁（2008-01-01 至 2010-12-31）',
+    },
+    {
+      id: 'comb_lr_citizen_association',
+      name: '协会组',
+      ageMin: 18, ageMax: 60,
+      birthStart: '1966-01-01', birthEnd: '2008-12-31',
+      description: '18-60周岁（1966-01-01 至 2008-12-31）',
+    },
+    {
+      id: 'comb_lr_citizen_agency',
+      name: '机关（企、事业）单位组',
+      ageMin: 18, ageMax: 60,
+      birthStart: '1966-01-01', birthEnd: '2008-12-31',
+      description: '18-60周岁（1966-01-01 至 2008-12-31）',
+    },
+  ];
+
+  for (const item of longRopeGroups) {
+    const ageGroup: PresetGroup = {
+      id: `age_${item.id.replace(/^comb_/, '')}`,
+      name: item.name,
+      type: 'age',
+      ageMin: item.ageMin,
+      ageMax: item.ageMax,
+      birthStart: item.birthStart,
+      birthEnd: item.birthEnd,
+      description: item.description,
+    };
+    result.push({
+      id: item.id,
+      name: item.name,
+      ageGroup,
+      genderGroup: null,
+      type: 'age',
+      gender: undefined,
+      ageMin: item.ageMin,
+      ageMax: item.ageMax,
+      description: item.description,
+      isStandalone: true,
+      namingSystem: 'common',
+      displayCategory: 'no_gender',
+    });
+  }
+
   return result;
 }
 

@@ -61,7 +61,7 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
 
   // 展开的类别（项目 / 分组）
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
-  const [expandedGroupCats, setExpandedGroupCats] = useState<Record<string, boolean>>({ male: true, female: true, mixed: true, standalone: true, none: true });
+  const [expandedGroupCats, setExpandedGroupCats] = useState<Record<string, boolean>>({ male: true, female: true, mixed: true, standalone: true, no_gender: true, none: true });
 
   useEffect(() => {
     if (!competitionId) return;
@@ -324,11 +324,12 @@ export default function AdminEvents({ competitionId }: { competitionId: string }
     });
   };
 
-  const selectAllGroupsInCategory = (category: 'male' | 'female' | 'mixed' | 'standalone' | 'none') => {
+  const selectAllGroupsInCategory = (category: 'male' | 'female' | 'mixed' | 'standalone' | 'no_gender' | 'none') => {
     setSelGroupPresets(prev => {
       const next = { ...prev };
       const groups = visibleCombinedGroups.filter(g => {
-        if (category === 'standalone') return g.isStandalone && !alreadyAddedGroupNames.has(g.name);
+        if (category === 'no_gender') return g.displayCategory === 'no_gender' && !alreadyAddedGroupNames.has(g.name);
+        if (category === 'standalone') return g.isStandalone && g.displayCategory !== 'no_gender' && !alreadyAddedGroupNames.has(g.name);
         if (category === 'mixed') return g.gender === 'mixed' && !alreadyAddedGroupNames.has(g.name);
         if (category === 'none') return g.type === 'age' && !g.gender && !g.isStandalone && !alreadyAddedGroupNames.has(g.name);
         return g.gender === category && !alreadyAddedGroupNames.has(g.name);
@@ -835,7 +836,7 @@ interface GroupPresetDialogProps {
   onEditFormChange: (updater: (prev: any) => any) => void;
   selPresets: Record<string, boolean>;
   onTogglePreset: (id: string) => void;
-  onSelectAllInCategory: (category: 'male' | 'female' | 'mixed' | 'standalone' | 'none') => void;
+  onSelectAllInCategory: (category: 'male' | 'female' | 'mixed' | 'standalone' | 'no_gender' | 'none') => void;
   expandedCategories: Record<string, boolean>;
   onToggleCategory: (catKey: string) => void;
   selectedCount: number;
@@ -928,7 +929,8 @@ function GroupPresetDialog({
                   { key: 'male', label: '男子组', groups: visibleGroups.filter(g => g.gender === 'male') },
                   { key: 'female', label: '女子组', groups: visibleGroups.filter(g => g.gender === 'female') },
                   { key: 'mixed', label: '混合组', groups: visibleGroups.filter(g => g.gender === 'mixed'), subtitle: '男女混合' },
-                  { key: 'standalone', label: '亲子组', groups: visibleGroups.filter(g => g.isStandalone && g.id !== 'comb_none'), subtitle: '不区分性别' },
+                  { key: 'standalone', label: '亲子组', groups: visibleGroups.filter(g => g.isStandalone && g.id !== 'comb_none' && g.displayCategory !== 'no_gender'), subtitle: '不区分性别' },
+                  { key: 'no_gender', label: '不限性别组', groups: visibleGroups.filter(g => g.displayCategory === 'no_gender'), subtitle: '长绳项目分组' },
                   { key: 'none', label: '不分组别', groups: visibleGroups.filter(g => g.id === 'comb_none'), subtitle: '不区分年龄和性别' },
                 ].filter(cat => cat.groups.length > 0).map(cat => {
                   const avail = cat.groups.filter(g => !alreadyAddedNames.has(g.name));
@@ -948,6 +950,7 @@ function GroupPresetDialog({
                           cat.key === 'male' ? 'bg-blue-400' :
                           cat.key === 'female' ? 'bg-pink-400' :
                           cat.key === 'mixed' ? 'bg-amber-400' :
+                          cat.key === 'no_gender' ? 'bg-sky-400' :
                           cat.key === 'none' ? 'bg-slate-400' :
                           'bg-purple-400'
                         }`} />
@@ -959,7 +962,7 @@ function GroupPresetDialog({
 
                       <div className="flex justify-end px-4 py-1.5 border-b border-slate-100">
                         {avail.length > 0 ? (
-                          <button type="button" className="text-xs text-blue-600 hover:text-blue-700" onClick={() => onSelectAllInCategory(cat.key as 'male' | 'female' | 'mixed' | 'standalone' | 'none')}>
+                          <button type="button" className="text-xs text-blue-600 hover:text-blue-700" onClick={() => onSelectAllInCategory(cat.key as 'male' | 'female' | 'mixed' | 'standalone' | 'no_gender' | 'none')}>
                             {avail.every(g => selPresets[g.id]) ? '取消全选' : '全选'}
                           </button>
                         ) : (
