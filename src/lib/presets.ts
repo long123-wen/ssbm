@@ -544,6 +544,13 @@ function buildCombinedGroups(): CombinedGroupPreset[] {
     description: string;
   }> = [
     {
+      id: 'comb_lr_student_infant',
+      name: '幼儿组不限性别组',
+      ageMin: 4, ageMax: 6,
+      birthStart: '2020-01-01', birthEnd: '2022-12-31',
+      description: '4-6岁（2020-01-01 至 2022-12-31）',
+    },
+    {
       id: 'comb_lr_student_child',
       name: '儿童组不限性别组',
       ageMin: 7, ageMax: 12,
@@ -556,6 +563,13 @@ function buildCombinedGroups(): CombinedGroupPreset[] {
       ageMin: 13, ageMax: 18,
       birthStart: '2008-01-01', birthEnd: '2013-12-31',
       description: '13-18岁（2008-01-01 至 2013-12-31）',
+    },
+    {
+      id: 'comb_lr_student_youth',
+      name: '青年组不限性别组',
+      ageMin: 19, ageMax: 25,
+      birthStart: '2001-01-01', birthEnd: '2007-12-31',
+      description: '19-25岁（2001-01-01 至 2007-12-31）',
     },
     {
       id: 'comb_lr_citizen_association',
