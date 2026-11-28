@@ -544,32 +544,18 @@ function buildCombinedGroups(): CombinedGroupPreset[] {
     description: string;
   }> = [
     {
-      id: 'comb_lr_student_u9',
-      name: '儿童甲组',
-      ageMin: 7, ageMax: 9,
-      birthStart: '2017-01-01', birthEnd: '2019-12-31',
-      description: '7-9岁（2017-01-01 至 2019-12-31）',
+      id: 'comb_lr_student_child',
+      name: '儿童组',
+      ageMin: 7, ageMax: 12,
+      birthStart: '2014-01-01', birthEnd: '2019-12-31',
+      description: '7-12岁（2014-01-01 至 2019-12-31）',
     },
     {
-      id: 'comb_lr_student_u12',
-      name: '儿童乙组',
-      ageMin: 10, ageMax: 12,
-      birthStart: '2014-01-01', birthEnd: '2016-12-31',
-      description: '10-12岁（2014-01-01 至 2016-12-31）',
-    },
-    {
-      id: 'comb_lr_student_u15',
-      name: '少年甲组',
-      ageMin: 13, ageMax: 15,
-      birthStart: '2011-01-01', birthEnd: '2013-12-31',
-      description: '13-15岁（2011-01-01 至 2013-12-31）',
-    },
-    {
-      id: 'comb_lr_student_u18',
-      name: '少年乙组',
-      ageMin: 16, ageMax: 18,
-      birthStart: '2008-01-01', birthEnd: '2010-12-31',
-      description: '16-18岁（2008-01-01 至 2010-12-31）',
+      id: 'comb_lr_student_teen',
+      name: '少年组',
+      ageMin: 13, ageMax: 18,
+      birthStart: '2008-01-01', birthEnd: '2013-12-31',
+      description: '13-18岁（2008-01-01 至 2013-12-31）',
     },
     {
       id: 'comb_lr_citizen_association',
